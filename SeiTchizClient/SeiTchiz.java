@@ -14,14 +14,25 @@ public class SeiTchiz {
 		}
 		
 		// Args
-		String[] serverAddress = args[2].split(":");
-		String ip = serverAddress[0];
-		int port = Integer.parseInt(serverAddress[1]);
+		//String[] serverAddress = args[0].split(".");
+		//String ip = serverAddress[0];
+		//int port = Integer.parseInt(serverAddress[1]);
 		String user = args[1];
+		String ip = args[0];
 		String password = "";
+		
+		if (args.length == 2) {
+			System.out.println("Introduza a sua password:");
+			password = (new Scanner(System.in)).nextLine();
+		} else
+			password = args[2];
+		
+		int port = 45678;
 		
 		SeiTchiz cliente = new SeiTchiz();
 		cliente.startClient(ip,port);
+		
+		
 		
 		
 	}
@@ -43,15 +54,15 @@ public class SeiTchiz {
 
             out.writeObject(password);
             out.writeObject(localUserID);
-	        out.close();
-	        in.close();
-	        socketCliente.close();
+            
+	        
 		}catch(IOException e) {
             System.err.println(e.getMessage());
             System.exit(-1);
 			
 		}
 		
+        
 	}
 
 }
