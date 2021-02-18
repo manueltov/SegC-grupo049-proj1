@@ -1,1 +1,3 @@
-SC-PROJ-1
+# SC PROJECT #1
+
+## SeiTchiz
