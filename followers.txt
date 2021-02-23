@@ -1,3 +1,1 @@
-joao:ze,banana
-ze:
-banana:
+joao:
