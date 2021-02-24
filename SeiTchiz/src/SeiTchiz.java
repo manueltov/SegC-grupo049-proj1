@@ -57,7 +57,10 @@ public class SeiTchiz {
             inStream.close();
             socketClient.close();
         }
-        catch (IOException | ClassNotFoundException e) {
+        catch (IOException e) {
+            System.err.println(e.getMessage());
+            System.exit(-1);
+        } catch (ClassNotFoundException e) {
             System.err.println(e.getMessage());
             System.exit(-1);
         }

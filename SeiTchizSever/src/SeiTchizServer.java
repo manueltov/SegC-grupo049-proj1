@@ -106,9 +106,12 @@ public class SeiTchizServer {
                 outStream.close();
                 socket.close();
             }
-            catch (IOException | ClassNotFoundException e) {
-                //e.printStackTrace();
-                System.out.println("Cliente desconectado!");
+            catch (IOException e) {
+                e.printStackTrace();
+                //System.out.println("Cliente desconectado!");
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+                //System.out.println("Cliente desconectado!");
             }
         }
     }
