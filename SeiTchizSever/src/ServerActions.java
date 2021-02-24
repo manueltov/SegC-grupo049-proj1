@@ -13,6 +13,7 @@ public class ServerActions {
     private ObjectInputStream in = null;
     private static final String txt = ".txt";
     private static final String followers = "followers" + txt;
+    private static final String groups = "groups" + txt;
 
     public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
         this.in = in;
@@ -133,6 +134,55 @@ public class ServerActions {
         }
         return  followersString;
     }
+
+    public boolean newGroup(String groupID) {
+        boolean created = false;
+
+        //Se o grupo já existir assinala um erro
+        if (groupExists(groupID)){
+            System.out.println("ERROR: that groupID already exists");
+            created = false;
+            return created;
+        }
+
+        //cria um grupo privado, cujo dono (owner) será o cliente que o criou
+        try {
+            List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(groups), StandardCharsets.UTF_8));
+            String line = groupID + "";
+            line = line + ":" + user;
+            fileContent.set(fileContent.size()-1, line);
+            Files.write(Paths.get(groups), fileContent, StandardCharsets.UTF_8);
+            created = true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("ERROR: error reading file...");
+        }
+        return created;
+    }
+
+    private boolean groupExists(String groupID){
+        boolean exists = false;
+        List<String> fileContent = null;
+        try {
+            fileContent = new ArrayList<>(Files.readAllLines(Paths.get(groups), StandardCharsets.UTF_8));
+            for (int i = 0; i < fileContent.size(); i++) {
+                String line = fileContent.get(i);
+                String[] split = line.split(":");
+                String groupIdentification = split[0];
+
+                if (groupIdentification.equals(groupID)) {
+                    exists = true;
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("ERROR: error reading file...");
+        }
+        return exists;
+    }
+
+
 
     private File openFile(String str) {
         File file = new File(str);
