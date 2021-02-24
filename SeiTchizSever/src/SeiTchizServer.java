@@ -79,23 +79,32 @@ public class SeiTchizServer {
                     }
                     else if (split.length == 2) {
                         String command = split[0];
-                        String userID = split[1];
+                        String arg1 = split[1];
                         if (command.equals("f") || command.equals("follow")) {
-                            boolean follow = acc.followUser(userID);
+                            boolean follow = acc.followUser(arg1);
                             if (follow) {
-                                mesSent = "Seguiu: " + userID;
+                                mesSent = "Seguiu: " + arg1;
                             }
                             else {
-                                mesSent = "Não foi possível seguir: " + userID;
+                                mesSent = "Não foi possível seguir: " + arg1;
                             }
                         }
                         else if (command.equals("u") || command.equals("unfollow")) {
-                            boolean unfollow = acc.unfollowUser(userID);
+                            boolean unfollow = acc.unfollowUser(arg1);
                             if (unfollow) {
-                                mesSent = "Deixou de seguir: " + userID;
+                                mesSent = "Deixou de seguir: " + arg1;
                             }
                             else {
-                                mesSent = "Não foi possível deixar de seguir: " + userID;
+                                mesSent = "Não foi possível deixar de seguir: " + arg1;
+                            }
+                        }
+                        else if (command.equals("n") || command.equals("newgroup")) {
+                            boolean newgroup = acc.newGroup(arg1);
+                            if (newgroup) {
+                                mesSent = "Group created: " + arg1;
+                            }
+                            else {
+                                mesSent = "Failled creating the group: " + arg1;
                             }
                         }
                     }
