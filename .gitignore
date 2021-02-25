@@ -30,3 +30,10 @@ out/production/SeiTchiz/users.txt
 out/production/SeiTchizSever/followers.txt
 out/production/SeiTchizSever/groups.txt
 SeiTchiz/SeiTchiz.iml
+.idea/SegC-grupo049-proj1.iml
+.idea/vcs.xml
+SeiTchizServer/SeiTchizServer.iml
+out/production/SeiTchizServer/users.txt
+out/production/SeiTchizServer/groups.txt
+out/production/SeiTchizServer/followers.txt
+.idea/runConfigurations/SeiTchizServer.xml

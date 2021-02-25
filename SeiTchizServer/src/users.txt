@@ -1,3 +1,4 @@
-manuel:fixe
-joao:ok
+joao:fixe
+manuel:ok
 ola:adeus
+banana:oioi
