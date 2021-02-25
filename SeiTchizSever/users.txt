@@ -1,3 +1,0 @@
-joao:fixe
-ze:123
-banana:ok

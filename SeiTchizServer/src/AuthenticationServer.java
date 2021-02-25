@@ -23,17 +23,17 @@ public class AuthenticationServer {
         return autentica;
     }
 
-    //falta meter pass
+    // falta meter pass
     public boolean registerUser(String user, String password) throws IOException {
         File file = openFile(utilizadores);
         BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
-        writer.write(user+":"+password+"\n");
+        writer.write(user + ":" + password + "\n");
         writer.close();
         file = openFile(followers);
         writer = new BufferedWriter(new FileWriter(file, true));
-        writer.write(user+":\n");
+        writer.write(user + ":\n");
         writer.close();
-        System.out.println("User adicionado com respetiva password "+user);
+        System.out.println("User adicionado com respetiva password " + user);
         return true;
     }
 
@@ -73,10 +73,9 @@ public class AuthenticationServer {
             System.err.println(" Erro ao ler o ficheiro de utilizadores.");
         }
         if (valid) {
-            System.out.println("User " + username + ":" + password +  " correto");
-        }
-        else {
-            System.out.println("User " + username + ":" + password +  " incorreto");
+            System.out.println("User " + username + ":" + password + " correto");
+        } else {
+            System.out.println("User " + username + ":" + password + " incorreto");
         }
         return valid;
     }
@@ -95,11 +94,9 @@ public class AuthenticationServer {
                 file.createNewFile();
             }
         } catch (IOException e) {
-            System.err.println(" Erro ao criar a pasta ou ficheiro:"+str);
+            System.err.println(" Erro ao criar a pasta ou ficheiro:" + str);
         }
         return file;
     }
-
-
 
 }

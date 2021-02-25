@@ -9,7 +9,7 @@ import java.util.Scanner;
 
 public class ServerActions {
     private String user = "";
-    private String password="";
+    private String password = "";
     private ObjectInputStream in = null;
     private static final String txt = ".txt";
     private static final String followers = "followers" + txt;
@@ -17,42 +17,41 @@ public class ServerActions {
 
     public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
         this.in = in;
-        //this.out = out;
+        // this.out = out;
     }
 
     public boolean comecaAccoes() {
         try {
             if (!autenticacao()) {
                 return false;
-            }
-            else {
+            } else {
                 return true;
             }
-        } catch(IOException | ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
             System.err.println(" Erro ao receber e enviar mensagens ao Cliente");
         }
         return false;
     }
+
     private boolean autenticacao() throws ClassNotFoundException, IOException {
         boolean existsUser;
         user = (String) in.readObject();
         password = (String) in.readObject();
-        //ver se utilizador já existe
+        // ver se utilizador já existe
         existsUser = AuthenticationServer.getInstance().existsUser(user);
-        //out.flush();
-        //out.writeObject(existsUser);
-        //se não existir, cria um novo
-        if(!existsUser) {
+        // out.flush();
+        // out.writeObject(existsUser);
+        // se não existir, cria um novo
+        if (!existsUser) {
             AuthenticationServer.getInstance().registerUser(user, password);
             return true;
         }
-        //se existir, verificar a password
+        // se existir, verificar a password
         else {
             boolean login = AuthenticationServer.getInstance().checkPassword(user, password);
             if (login) {
                 return true;
-            }
-            else {
+            } else {
                 return false;
             }
         }
@@ -72,8 +71,7 @@ public class ServerActions {
                         line = line + "," + user;
                         follow = true;
                     }
-                }
-                else {
+                } else {
                     line = line + user;
                     follow = true;
                 }
@@ -107,8 +105,7 @@ public class ServerActions {
                     for (int j = 0; j < followersList.size(); j++) {
                         if (j == 0) {
                             line = line + followersList.get(j);
-                        }
-                        else {
+                        } else {
                             line = line + "," + followersList.get(j);
                         }
                     }
@@ -123,7 +120,8 @@ public class ServerActions {
 
     public String followers() throws IOException {
         String followersString = "";
-        ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
+        ArrayList<String> fileContent = new ArrayList<>(
+                Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
         for (int i = 0; i < fileContent.size(); i++) {
             String line = fileContent.get(i);
             String[] split = line.split(":");
@@ -132,25 +130,25 @@ public class ServerActions {
                 followersString = split[1];
             }
         }
-        return  followersString;
+        return followersString;
     }
 
     public boolean newGroup(String groupID) {
         boolean created = false;
 
-        //Se o grupo já existir assinala um erro
-        if (groupExists(groupID)){
+        // Se o grupo já existir assinala um erro
+        if (groupExists(groupID)) {
             System.out.println("ERROR: that groupID already exists");
             created = false;
             return created;
         }
 
-        //cria um grupo privado, cujo dono (owner) será o cliente que o criou
+        // cria um grupo privado, cujo dono (owner) será o cliente que o criou
         try {
             List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(groups), StandardCharsets.UTF_8));
             String line = groupID + "";
             line = line + ":" + user;
-            fileContent.set(fileContent.size()-1, line);
+            fileContent.set(fileContent.size() - 1, line);
             Files.write(Paths.get(groups), fileContent, StandardCharsets.UTF_8);
             created = true;
         } catch (IOException e) {
@@ -160,7 +158,7 @@ public class ServerActions {
         return created;
     }
 
-    private boolean groupExists(String groupID){
+    private boolean groupExists(String groupID) {
         boolean exists = false;
         List<String> fileContent = null;
         try {
@@ -182,8 +180,6 @@ public class ServerActions {
         return exists;
     }
 
-
-
     private File openFile(String str) {
         File file = new File(str);
         File folders = file.getParentFile();
@@ -198,7 +194,7 @@ public class ServerActions {
                 file.createNewFile();
             }
         } catch (IOException e) {
-            System.err.println(" Erro ao criar a pasta ou ficheiro:"+str);
+            System.err.println(" Erro ao criar a pasta ou ficheiro:" + str);
         }
         return file;
     }

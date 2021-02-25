@@ -1,3 +1,0 @@
-grupoamigos:joao,banana
-grupo2:joao,ze,banana
-novogrupo:banana
