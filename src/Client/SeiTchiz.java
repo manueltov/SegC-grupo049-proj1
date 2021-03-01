@@ -4,11 +4,15 @@ package Client;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class SeiTchiz {
     private Socket socketClient = null;
     private static int PORT = 45678;
     public static void main(String[] args) {
+    	createFolder();
         System.out.println("cliente SeiTchiz inicio");
         if (args.length < 3) {
             //127.0.0.1:45678
@@ -30,7 +34,18 @@ public class SeiTchiz {
         client.startClient(ip, port, username, password);
     }
 
-    private void startClient(String ip, int port, String user, String password) {
+    private static void createFolder() {
+    	try {
+            Path path = Paths.get("../imagensParaEnvio/");
+            //java.nio.file.Files;
+            Files.createDirectories(path);
+        } 
+        catch (IOException e) {
+            System.err.println("Erro: pasta de fotografias para envio não criada" + e.getMessage());
+        }		
+	}
+
+	private void startClient(String ip, int port, String user, String password) {
         try {
             socketClient = new Socket(ip, port);
 

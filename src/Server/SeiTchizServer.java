@@ -106,6 +106,17 @@ public class SeiTchizServer {
                                 mesSent = "Não foi possível deixar de seguir: '" + userID + "'";
                             }
                         }
+                        else if (command.equals("p") || command.equals("post")) {
+                            String photoID = split[1];
+                            boolean posted = acc.post(photoID);
+
+                            if (posted){
+                                mesSent = "publicou uma fotografia";
+                            }
+                            else{
+                                mesSent = "n�o foi possivel publicar a fotografia selecionada";
+                            }
+                        }
                         else if (command.equals("n") || command.equals("newgroup")) {
                             String groupID = split[1];
                             boolean created = acc.newGroup(groupID);

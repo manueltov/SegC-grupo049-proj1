@@ -1,2 +1,3 @@
 joao:fixe
 helena:ok
+coolUser:goodPassword

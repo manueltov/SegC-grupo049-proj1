@@ -385,6 +385,17 @@ public class ServerActions {
         }
         return sent;
     }
+    
+    public boolean post(String filename){
+        try {
+            Path path = Paths.get("../imagens"+ user +"/");
+            Files.createDirectories(path);
+        } 
+        catch (IOException e) {
+            System.err.println("Erro: pasta de fotografias para recepção não criada" + e.getMessage());
+        }
+		return false;
+    }
 
     private File openFile(String str) {
         File file = new File(str);
