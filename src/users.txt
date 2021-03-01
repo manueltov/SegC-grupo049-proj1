@@ -1,4 +1,0 @@
-joao:fixe
-manuel:ok
-ola:adeus
-banana:oioi

@@ -40,3 +40,4 @@ out/production/SeiTchizServer/followers.txt
 .classpath
 .project
 .settings/org.eclipse.jdt.core.prefs
+bin/

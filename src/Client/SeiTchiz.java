@@ -1,3 +1,7 @@
+package Client;
+
+
+
 import java.io.*;
 import java.net.Socket;
 
@@ -44,7 +48,8 @@ public class SeiTchiz {
             }
             else {
                 System.out.println("Conectado!");
-                String str="",str2="";
+                String str="";
+                String str2="";
                 while(!str.equals("stop")){
                     str=br.readLine();
                     outStream.writeObject(str);

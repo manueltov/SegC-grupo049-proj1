@@ -1,6 +1,0 @@
-grant codeBase "file:${user.home}${/}SegC-grupo049-proj1${/}SeiTchiz${/}-" {
-	
-	permission java.io.FilePermission "${user.home}${/}SegC-grupo049-proj1${/}SeiTchiz${/}-", "read,write";
-	//falta fotos
-	permission java.io.SocketPermission "*:45678-", "accept, connect, listen, resolve";
-};

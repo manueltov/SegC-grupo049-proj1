@@ -1,0 +1,4 @@
+grant  {
+	permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
+	permission java.io.SocketPermission "localhost:45678", "connect, listen,resolve";
+	};
