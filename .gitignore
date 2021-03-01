@@ -37,3 +37,6 @@ out/production/SeiTchizServer/users.txt
 out/production/SeiTchizServer/groups.txt
 out/production/SeiTchizServer/followers.txt
 .idea/runConfigurations/SeiTchizServer.xml
+.classpath
+.project
+.settings/org.eclipse.jdt.core.prefs

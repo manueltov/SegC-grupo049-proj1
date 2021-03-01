@@ -18,6 +18,9 @@ public class ServerActions {
     public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
         this.in = in;
         // this.out = out;
+
+        //create users.txt
+        File file = openFile(groups);
     }
 
     public boolean comecaAccoes() {
@@ -146,9 +149,8 @@ public class ServerActions {
         // cria um grupo privado, cujo dono (owner) será o cliente que o criou
         try {
             List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(groups), StandardCharsets.UTF_8));
-            String line = groupID + "";
-            line = line + ":" + user;
-            fileContent.set(fileContent.size() - 1, line);
+            String line = groupID + ":" + user + "\n";
+            fileContent.set(fileContent.size()-1, line);
             Files.write(Paths.get(groups), fileContent, StandardCharsets.UTF_8);
             created = true;
         } catch (IOException e) {
