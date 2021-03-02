@@ -18,6 +18,7 @@ public class ServerActions {
 	private ObjectInputStream in = null;
 	private static final String txt = ".txt";
 	private static final String followers = "followers" + txt;
+	private static final String ledger = "ledger" + txt;
 	private static final String GROUPS_FOLDER = "./src/Server/Groups";
 	private static final String USERS = "users.txt";
 	private static final String IMAGES_FOLDER = "./src/Server/Images";
@@ -154,7 +155,7 @@ public class ServerActions {
 
 	public String post(String photo) {
 		String photoID = null;
-		
+
 		String folderName = IMAGES_FOLDER + "/img_" + user;
 
 		// if it doesn't exists, create it!
@@ -168,8 +169,8 @@ public class ServerActions {
 
 		// add photo to that folder
 		photoID = photoAdd(photo, folderName);
-		
-		//verify if it worked
+
+		// verify if it worked
 		if (photoID != null) {
 			System.out.println(photo + " successfully added!");
 			return photoID;
@@ -184,11 +185,11 @@ public class ServerActions {
 		String filename = folder + "/" + photo + ".txt";
 //		File file = new File(filename);
 		File file = openFile(filename);
-		
+
 		if (file.exists()) {
 			generatedPhotoID = generatePhotoID();
 		}
-		
+
 		if (generatedPhotoID != null) {
 			if (addToLedger(user, generatedPhotoID)) {
 				return generatedPhotoID;
@@ -201,12 +202,12 @@ public class ServerActions {
 		boolean added = false;
 		LocalDateTime timeStamp = LocalDateTime.now();
 		String timeStampEdited = timeStamp.toString().replace(":", "");
-		//				user:photoID:likes:timeStamp
-		//				ze:photo12:7:20210225083000
+		// user:photoID:likes:timeStamp
+		// ze:photo12:7:20210225083000
 		String text = user + ":" + photoID + ":" + "0" + ":" + timeStampEdited + "\n";
-		
+
 		try {
-	        BufferedWriter myWriter = new BufferedWriter(new FileWriter(openFile("ledger.txt"), true));
+			BufferedWriter myWriter = new BufferedWriter(new FileWriter(openFile(ledger), true));
 			myWriter.write(text);
 			myWriter.close();
 			System.out.println("ledger atualizado");
@@ -223,6 +224,84 @@ public class ServerActions {
 		this.photoID++;
 		String aux = "photo" + this.photoID;
 		return aux;
+	}
+
+	public boolean like(String photoID) {
+		boolean liked = false;
+
+		// Get the photo info
+		String[] photoInfo = getPhotoInfo(photoID);
+		if (photoInfo == null) {
+			System.out.println("Error, getting that photoID...");
+			return liked;
+		}
+
+		// increment likes of that photo
+		String likes_str = photoInfo[2];
+		int likes = Integer.parseInt(likes_str);
+		likes++;
+		photoInfo[2] = likes + "";
+
+		// update photo info
+		if (updatePhotoInfo(photoID, photoInfo)) {
+			liked = true;
+		}
+
+		return liked;
+	}
+
+	private String[] getPhotoInfo(String searchPhotoID) {
+		// user:photoID:likes:timeStamp
+		// ze:photo12:7:20210225083000
+		String[] photoInfo = null;
+		File ledgerFile = openFile(ledger);
+		try (Scanner reader = new Scanner(ledgerFile)) {
+			while (reader.hasNextLine()) {
+				String line = reader.nextLine();
+				String[] split = line.split(":");
+				String username = split[0];
+				String photoID = split[1];
+				String likes = split[2];
+				String timeStamp = split[3];
+				if (photoID.equals(searchPhotoID)) {
+					photoInfo = new String[4];
+					photoInfo[0] = username;
+					photoInfo[1] = photoID;
+					photoInfo[2] = likes;
+					photoInfo[3] = timeStamp;
+				}
+			}
+		} catch (FileNotFoundException e) {
+			System.err.println(" Erro ao ler o ficheiro ledger.");
+		}
+		return photoInfo;
+	}
+
+	private boolean updatePhotoInfo(String searchPhotoID, String[] photoInfo) {
+		boolean photoInfoUpdated = false;
+		// user:photoID:likes:timeStamp
+		// ze:photo12:7:20210225083000
+
+		try {
+			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent.size(); i++) {
+				String line = fileContent.get(i);
+				String[] split = line.split(":");
+				String photoID = split[1];
+				if (photoID.equals(searchPhotoID)) {
+					String text = photoInfo[0] + ":" + photoInfo[1] + ":" + photoInfo[2] + ":" + photoInfo[3];
+					fileContent.set(i, text);
+					photoInfoUpdated = true;
+					break;
+				}
+			}
+			Files.write(Paths.get(ledger), fileContent, StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			System.out.println("Error, updating the ledger.");
+			e.printStackTrace();
+		}
+
+		return photoInfoUpdated;
 	}
 
 	public void writeGroup(File filename, Group group) {

@@ -107,6 +107,14 @@ public class SeiTchizServer {
 							} else {
 								mesSent = "não foi possivel publicar a fotografia selecionada";
 							}
+						} else if (command.equals("l") || command.equals("like")) {
+							String photoID = split[1];
+							boolean liked = acc.like(photoID);
+							if (liked) {
+								mesSent = "Fotografia com ID: " + photoID + " liked.";
+							} else {
+								mesSent = "não foi possivel fazer like à foto com ID: " + photoID;
+							}
 						} else if (command.equals("n") || command.equals("newgroup")) {
 							String groupID = split[1];
 							boolean created = acc.newGroup(groupID);
