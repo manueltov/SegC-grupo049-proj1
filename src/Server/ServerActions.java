@@ -14,20 +14,19 @@ import java.util.Scanner;
 public class ServerActions {
 	private String user = "";
 	private String password = "";
-	private int photoID = 0;
 	private ObjectInputStream in = null;
 	private static final String txt = ".txt";
 	private static final String followers = "followers" + txt;
+	private static final String following = "following" + txt;
 	private static final String ledger = "ledger" + txt;
 	private static final String GROUPS_FOLDER = "./src/Server/Groups";
-	private static final String USERS = "users.txt";
+	// private static final String USERS = "users.txt"; //not used
 	private static final String IMAGES_FOLDER = "./src/Server/Images";
 
 	public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
 		this.in = in;
 		// this.out = out;
 		createImagesFolder();
-		this.photoID = 0;
 	}
 
 	public boolean comecaAccoes() {
@@ -78,28 +77,86 @@ public class ServerActions {
 	}
 
 	public boolean followUser(String userToFollow) throws IOException {
+		boolean followersFile = false;
+		boolean followingFile = false;
+
+		// followers file
+		followersFile = addToFollowers(userToFollow);
+		if (!followersFile) {
+			System.out.println("Problem adding to followers file...");
+		}
+
+		// following file
+		followingFile = addToFollowing(userToFollow);
+		if (!followingFile) {
+			System.out.println("Problem adding to following file...");
+		}
+
+		return followersFile && followingFile;
+	}
+
+	private boolean addToFollowing(String userToFollow) {
 		boolean follow = false;
-		List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
-		for (int i = 0; i < fileContent.size(); i++) {
-			String line = fileContent.get(i);
-			String[] split = line.split(":");
-			String userFollow = split[0];
-			if (userFollow.equals(userToFollow) && !userToFollow.equals(user)) {
-				if (split.length > 1) {
-					String[] followersArray = split[1].split(",");
-					if (!Arrays.asList(followersArray).contains(user)) {
-						line = line + "," + user;
+
+		List<String> fileContent_following;
+		try {
+			fileContent_following = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent_following.size(); i++) {
+				String line = fileContent_following.get(i);
+				String[] split = line.split(":");
+				String myuser = split[0];
+				if (myuser.equals(this.user) && !userToFollow.equals(this.user)) {
+					if (split.length > 1) {
+						String[] followingArray = split[1].split(",");
+						if (!Arrays.asList(followingArray).contains(userToFollow)) {
+							line = line + "," + userToFollow;
+							follow = true;
+						}
+					} else {
+						line = line + userToFollow;
 						follow = true;
 					}
-				} else {
-					line = line + user;
-					follow = true;
+					fileContent_following.set(i, line);
+					break;
 				}
-				fileContent.set(i, line);
-				break;
 			}
+			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			System.out.println("Problem adding to following.txt");
+			// e.printStackTrace();
 		}
-		Files.write(Paths.get(followers), fileContent, StandardCharsets.UTF_8);
+		return follow;
+	}
+
+	private boolean addToFollowers(String userToFollow) {
+		boolean follow = false;
+		try {
+			List<String> fileContent_followers;
+			fileContent_followers = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent_followers.size(); i++) {
+				String line = fileContent_followers.get(i);
+				String[] split = line.split(":");
+				String userFollow = split[0];
+				if (userFollow.equals(userToFollow) && !userToFollow.equals(user)) {
+					if (split.length > 1) {
+						String[] followersArray = split[1].split(",");
+						if (!Arrays.asList(followersArray).contains(user)) {
+							line = line + "," + user;
+							follow = true;
+						}
+					} else {
+						line = line + user;
+						follow = true;
+					}
+					fileContent_followers.set(i, line);
+					break;
+				}
+			}
+			Files.write(Paths.get(followers), fileContent_followers, StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			System.out.println("Problem adding to followers.txt");
+			// e.printStackTrace();
+		}
 		return follow;
 	}
 
@@ -153,6 +210,21 @@ public class ServerActions {
 		return followersString;
 	}
 
+	public String following() throws IOException {
+		String followingString = "Nao segue ninguem\n";
+		ArrayList<String> fileContent = new ArrayList<>(
+				Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
+		for (int i = 0; i < fileContent.size(); i++) {
+			String line = fileContent.get(i);
+			String[] split = line.split(":");
+			String username = split[0];
+			if (username.equals(user) && split.length > 1) {
+				followingString = split[1];
+			}
+		}
+		return followingString;
+	}
+
 	public String post(String photo) {
 		String photoID = null;
 
@@ -180,9 +252,9 @@ public class ServerActions {
 		}
 	}
 
-	private String photoAdd(String photo, String folder) {
+	private String photoAdd(String photoFileName, String folder) {
 		String generatedPhotoID = null;
-		String filename = folder + "/" + photo + ".txt";
+		String filename = folder + "/" + photoFileName + ".txt";
 //		File file = new File(filename);
 		File file = openFile(filename);
 
@@ -191,21 +263,21 @@ public class ServerActions {
 		}
 
 		if (generatedPhotoID != null) {
-			if (addToLedger(user, generatedPhotoID)) {
+			if (addToLedger(user, generatedPhotoID, photoFileName)) {
 				return generatedPhotoID;
 			}
 		}
 		return generatedPhotoID;
 	}
 
-	private boolean addToLedger(String user, String photoID) {
+	private boolean addToLedger(String user, String photoID, String photoFileName) {
 		boolean added = false;
 		LocalDateTime timeStamp = LocalDateTime.now();
 		String timeStampEdited = timeStamp.toString().replace(":", "");
-		// user:photoID:likes:timeStamp
-		// ze:photo12:7:20210225083000
-		String text = user + ":" + photoID + ":" + "0" + ":" + timeStampEdited + "\n";
-
+		// current_ID:2
+		// coolUser:photo1:bliblibli.txt:2:2021-03-03T105618.753201
+		// user:photoID:filename:likes:timeStamp
+		String text = user + ":" + photoID + ":" + photoFileName + ":" + "0" + ":" + timeStampEdited + "\n";
 		try {
 			BufferedWriter myWriter = new BufferedWriter(new FileWriter(openFile(ledger), true));
 			myWriter.write(text);
@@ -221,9 +293,105 @@ public class ServerActions {
 	}
 
 	private String generatePhotoID() {
-		this.photoID++;
-		String aux = "photo" + this.photoID;
+		int photoID = getPhotoID();
+		photoID++;
+		if (updatePhotoID(photoID) == false) {
+			System.out.println("Error, updating the photoID in the ledger.");
+		}
+		String aux = "photo" + photoID;
 		return aux;
+	}
+
+	private boolean updatePhotoID(int photoID) {
+		boolean updated = false;
+		try {
+			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
+			String text = "current_ID:" + photoID;
+			fileContent.set(0, text);
+			Files.write(Paths.get(ledger), fileContent, StandardCharsets.UTF_8);
+			updated = true;
+		} catch (IOException e) {
+			System.out.println("Error, updating the photoID in the ledger.");
+			e.printStackTrace();
+		}
+		return updated;
+	}
+
+	private int getPhotoID() {
+		// current_ID:2
+		// coolUser:photo1:bliblibli.txt:2:2021-03-03T105618.753201
+		// user:photoID:filename:likes:timeStamp
+		String current_ID = null;
+		File ledgerFile = openFile(ledger);
+		try (Scanner reader = new Scanner(ledgerFile)) {
+			String line = reader.nextLine();
+			if (line.length() == 0) {
+				List<String> fileContent = new ArrayList<>(
+						Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
+				String text = "current_ID:" + 0;
+				current_ID = 0 + "";
+				fileContent.set(0, text);
+				Files.write(Paths.get(ledger), fileContent, StandardCharsets.UTF_8);
+			} else {
+				String[] split = line.split(":");
+				current_ID = split[1];
+			}
+		} catch (FileNotFoundException e) {
+			System.err.println(" Erro ao ler o ficheiro ledger.");
+		} catch (IOException e) {
+			System.out.println("Error, updating the photoID in the ledger.");
+			e.printStackTrace();
+		}
+		return Integer.parseInt(current_ID);
+	}
+
+	public String wall(String nPhotos) {
+		String photosToPrint = null;
+
+		// ir buscar as pessoas q se segue
+		String following = null;
+		try {
+			following = following();
+		} catch (IOException e) {
+			System.out.println("Error getting who i am following...");
+			// e.printStackTrace();
+			return photosToPrint;
+		}
+
+		// a cada pessoa q se segue pegar nas fotos
+		String[] followingList = following.split(",");
+		List<String> followingStringList = new ArrayList<String>(Arrays.asList(followingList));
+		StringBuilder sb = new StringBuilder();
+
+		try {
+			int photoCounter = Integer.parseInt(nPhotos);
+			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
+			int ultimaLinha = fileContent.size() - 1;
+			System.out.println(ultimaLinha);
+			while (photoCounter != 0) {
+				String line = fileContent.get(ultimaLinha);
+				String[] split = line.split(":");
+				String userFromList = split[0];
+				String photoID = split[1];
+				String photoName = split[2];
+				String photoLikes = split[3];
+				if (followingStringList.contains(userFromList)) {
+					String text = "A foto com ID " + photoID + ", nome: " + photoName + ", tem " + photoLikes
+							+ " likes.\n";
+					sb.append(text);
+					photoCounter--;
+				}
+				if (userFromList.equals("current_ID")) {
+					break;
+				}
+				ultimaLinha--;
+			}
+		} catch (IOException e) {
+			System.out.println("Error, updating the ledger.");
+			e.printStackTrace();
+		}
+		photosToPrint = sb.toString();
+		return photosToPrint;
 	}
 
 	public boolean like(String photoID) {
@@ -237,10 +405,10 @@ public class ServerActions {
 		}
 
 		// increment likes of that photo
-		String likes_str = photoInfo[2];
+		String likes_str = photoInfo[3];
 		int likes = Integer.parseInt(likes_str);
 		likes++;
-		photoInfo[2] = likes + "";
+		photoInfo[3] = likes + "";
 
 		// update photo info
 		if (updatePhotoInfo(photoID, photoInfo)) {
@@ -251,24 +419,29 @@ public class ServerActions {
 	}
 
 	private String[] getPhotoInfo(String searchPhotoID) {
-		// user:photoID:likes:timeStamp
-		// ze:photo12:7:20210225083000
+		// current_ID:2
+		// coolUser:photo1:bliblibli.txt:2:2021-03-03T105618.753201
+		// user:photoID:filename:likes:timeStamp
 		String[] photoInfo = null;
 		File ledgerFile = openFile(ledger);
 		try (Scanner reader = new Scanner(ledgerFile)) {
+			// queimar uma linha pois a primeira tem o currentID
+			reader.nextLine();
 			while (reader.hasNextLine()) {
 				String line = reader.nextLine();
 				String[] split = line.split(":");
 				String username = split[0];
 				String photoID = split[1];
-				String likes = split[2];
-				String timeStamp = split[3];
+				String photoFileName = split[2];
+				String likes = split[3];
+				String timeStamp = split[4];
 				if (photoID.equals(searchPhotoID)) {
-					photoInfo = new String[4];
+					photoInfo = new String[5];
 					photoInfo[0] = username;
 					photoInfo[1] = photoID;
-					photoInfo[2] = likes;
-					photoInfo[3] = timeStamp;
+					photoInfo[2] = photoFileName;
+					photoInfo[3] = likes;
+					photoInfo[4] = timeStamp;
 				}
 			}
 		} catch (FileNotFoundException e) {
@@ -279,8 +452,9 @@ public class ServerActions {
 
 	private boolean updatePhotoInfo(String searchPhotoID, String[] photoInfo) {
 		boolean photoInfoUpdated = false;
-		// user:photoID:likes:timeStamp
-		// ze:photo12:7:20210225083000
+		// current_ID:2
+		// coolUser:photo1:bliblibli.txt:2:2021-03-03T105618.753201
+		// user:photoID:filename:likes:timeStamp
 
 		try {
 			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
@@ -289,7 +463,8 @@ public class ServerActions {
 				String[] split = line.split(":");
 				String photoID = split[1];
 				if (photoID.equals(searchPhotoID)) {
-					String text = photoInfo[0] + ":" + photoInfo[1] + ":" + photoInfo[2] + ":" + photoInfo[3];
+					String text = photoInfo[0] + ":" + photoInfo[1] + ":" + photoInfo[2] + ":" + photoInfo[3] + ":"
+							+ photoInfo[4];
 					fileContent.set(i, text);
 					photoInfoUpdated = true;
 					break;

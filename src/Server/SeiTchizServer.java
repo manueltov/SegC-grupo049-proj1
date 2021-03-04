@@ -3,10 +3,11 @@ package Server;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 
 public class SeiTchizServer {
 	private static int PORT = 45678;
+	private static final String txt = ".txt";
+	private static final String ledger = "ledger" + txt;
 
 	public static void main(String[] args) {
 		if (args.length != 1) {
@@ -15,10 +16,14 @@ public class SeiTchizServer {
 		}
 		int port = Integer.parseInt(args[0]);
 		if (port != PORT) {
-			System.err.println("SeiTchizServer só no porto " + PORT);
+			System.err.println("SeiTchizServer no porto " + PORT);
 			System.exit(0);
 		}
-		System.out.println("Conexão feita ao porto " + port);
+		System.out.println("Conexaoo feita ao porto " + port);
+
+		// se ledgerFile ainda nao existe create one
+		createLedgerFile();
+
 		SeiTchizServer server = new SeiTchizServer();
 		server.startServer(port);
 	}
@@ -45,12 +50,46 @@ public class SeiTchizServer {
 		}
 	}
 
+	private static void createLedgerFile() {
+		File file = new File(ledger);
+		if (!file.exists()) {
+			try {
+				file = openFile(ledger);
+				BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+				writer.write("current_ID:0" + "\n");
+				writer.close();
+			} catch (IOException e) {
+				System.out.println("Error creating or updating ledger file...");
+				// e.printStackTrace();
+			}
+		}
+	}
+
+	private static File openFile(String str) {
+		File file = new File(str);
+		File folders = file.getParentFile();
+		try {
+			if (folders != null && !folders.exists()) {
+				folders.mkdirs();
+			}
+			if (!file.exists() && !str.contains(txt)) {
+				file.mkdir();
+			}
+			if (!file.exists() && str.contains(txt)) {
+				file.createNewFile();
+			}
+		} catch (IOException e) {
+			System.err.println(" Erro ao criar a pasta ou ficheiro:" + str);
+		}
+		return file;
+	}
+
 	class ServerThread extends Thread {
 		private Socket socket = null;
 
 		public ServerThread(Socket soc) {
 			socket = soc;
-			System.out.println("Conexão feita com o Cliente SeiTchiz");
+			System.out.println("Conexao feita com o Cliente SeiTchiz");
 		}
 
 		public void run() {
@@ -72,7 +111,7 @@ public class SeiTchizServer {
 					mesReceived = mesReceived.toLowerCase();
 					System.out.println(mesReceived);
 					String[] split = mesReceived.split(" ");
-					mesSent = "Mensagem inválida";
+					mesSent = "Mensagem invalida";
 					if (split.length == 1) {
 						String command = split[0];
 						if (command.equals("v") || command.equals("viewfollowers")) {
@@ -89,7 +128,7 @@ public class SeiTchizServer {
 							if (follow) {
 								mesSent = "Seguiu: '" + userID + "'";
 							} else {
-								mesSent = "Não foi possível seguir: '" + userID + "'";
+								mesSent = "Nao foi possivel seguir: '" + userID + "'";
 							}
 						} else if (command.equals("u") || command.equals("unfollow")) {
 							String userID = split[1];
@@ -97,7 +136,7 @@ public class SeiTchizServer {
 							if (unfollow) {
 								mesSent = "Deixou de seguir: '" + userID + "'";
 							} else {
-								mesSent = "Não foi possível deixar de seguir: '" + userID + "'";
+								mesSent = "Nao foi possivel deixar de seguir: '" + userID + "'";
 							}
 						} else if (command.equals("p") || command.equals("post")) {
 							String photo = split[1];
@@ -105,7 +144,15 @@ public class SeiTchizServer {
 							if (photoID != null) {
 								mesSent = "Fotografia com ID: " + photoID + "\n publicada com sucesso.";
 							} else {
-								mesSent = "n�o foi possivel publicar a fotografia selecionada";
+								mesSent = "nao foi possivel publicar a fotografia selecionada";
+							}
+						} else if (command.equals("w") || command.equals("wall")) {
+							String nPhotos = split[1];
+							String wall = acc.wall(nPhotos);
+							if (wall != null) {
+								mesSent = wall;
+							} else {
+								mesSent = "nao foi possivel fazer wall";
 							}
 						} else if (command.equals("l") || command.equals("like")) {
 							String photoID = split[1];
@@ -113,7 +160,7 @@ public class SeiTchizServer {
 							if (liked) {
 								mesSent = "Fotografia com ID: " + photoID + " liked.";
 							} else {
-								mesSent = "n�o foi possivel fazer like � foto com ID: " + photoID;
+								mesSent = "nao foi possivel fazer like na foto com ID: " + photoID;
 							}
 						} else if (command.equals("n") || command.equals("newgroup")) {
 							String groupID = split[1];

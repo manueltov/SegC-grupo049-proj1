@@ -1,3 +1,3 @@
-joao:
-helena:
-coolUser:
+joao:manel,luis
+manel:joao
+luis:manel,joao
