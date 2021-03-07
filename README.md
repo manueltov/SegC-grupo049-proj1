@@ -2,6 +2,9 @@
 
 SeiTchiz is a portuguese version of Instagram :-) .
 
+## Example
+![Alt text](example.gif?raw=true "GIF of an example")
+
 ## Developed and tested in linux environment (MAQUINAS DA FCUL) and MacOS
 
 - 45678 o porto usado para a conecao
