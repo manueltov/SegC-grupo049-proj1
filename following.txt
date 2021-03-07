@@ -1,3 +1,2 @@
-joao:manel,luis
-manel:joao,luis
-luis:joao
+manel:joao
+joao:

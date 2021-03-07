@@ -161,6 +161,25 @@ public class ServerActions {
 	}
 
 	public boolean unfollowUser(String userToUnfollow) throws IOException {
+		boolean followersFile = false;
+		boolean followingFile = false;
+
+		// followers file
+		followersFile = removeFromFollowers(userToUnfollow);
+		if (!followersFile) {
+			System.out.println("Problem removing from followers file...");
+		}
+
+		// following file
+		followingFile = removeFromFollowing(userToUnfollow);
+		if (!followingFile) {
+			System.out.println("Problem removing from following file...");
+		}
+
+		return followersFile && followingFile;
+	}
+
+	private boolean removeFromFollowers(String userToUnfollow) throws IOException {
 		boolean unfollow = false;
 		List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
 		for (int i = 0; i < fileContent.size(); i++) {
@@ -192,6 +211,47 @@ public class ServerActions {
 			}
 		}
 		Files.write(Paths.get(followers), fileContent, StandardCharsets.UTF_8);
+		return unfollow;
+	}
+	
+	private boolean removeFromFollowing(String userToUnfollow){
+		boolean unfollow = false;
+		List<String> fileContent_following;
+		try {
+			fileContent_following = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent_following.size(); i++) {
+				String line = fileContent_following.get(i);
+				String[] split = line.split(":");
+				String myuser = split[0];
+				if (myuser.equals(this.user) && !userToUnfollow.equals(this.user)) {
+					if (split.length > 1) {
+						String[] followingArray = split[1].split(",");
+						ArrayList<String> followingList = new ArrayList<>(Arrays.asList(followingArray));
+						for (int j = 0; j < followingList.size(); j++) {
+							if (followingList.get(j).equals(userToUnfollow)) {
+								followingList.remove(j);
+								unfollow = true;
+								break;
+							}
+						}
+						line = myuser + ":";
+						for (int j = 0; j < followingList.size(); j++) {
+							if (j == 0) {
+								line = line + followingList.get(j);
+							} else {
+								line = line + "," + followingList.get(j);
+							}
+						}
+					}
+					fileContent_following.set(i, line);
+					break;
+				}
+			}			
+			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			System.out.println("Problem removing from following.txt");
+			// e.printStackTrace();
+		}
 		return unfollow;
 	}
 
@@ -346,6 +406,11 @@ public class ServerActions {
 	}
 
 	public String wall(String nPhotos) {
+		int numeroPhotos = Integer.parseInt(nPhotos);
+		if (numeroPhotos < 1) {
+			System.out.println("Erro: tem de pedir uma ou mais fotos.");
+		}
+		
 		String photosToPrint = null;
 
 		// ir buscar as pessoas q se segue
@@ -353,19 +418,30 @@ public class ServerActions {
 		try {
 			following = following();
 		} catch (IOException e) {
-			System.out.println("Error getting who i am following...");
+			System.out.println("Error getting who am i following...");
 			// e.printStackTrace();
 			return photosToPrint;
+		}
+		
+		if (following.equals("Nao segue ninguem\n")) {
+			System.out.println("Nao segues ninguem por isso nao ha fotos para apresentar.");
+			return null;
 		}
 
 		// a cada pessoa q se segue pegar nas fotos
 		String[] followingList = following.split(",");
 		List<String> followingStringList = new ArrayList<String>(Arrays.asList(followingList));
 		StringBuilder sb = new StringBuilder();
-
+		
 		try {
 			int photoCounter = Integer.parseInt(nPhotos);
 			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
+			
+			if (fileContent.size() <= 1) {
+				System.out.println("Nao ha fotos para apresentar.");
+				return null;
+			}
+			
 			int ultimaLinha = fileContent.size() - 1;
 			System.out.println(ultimaLinha);
 			while (photoCounter != 0) {
