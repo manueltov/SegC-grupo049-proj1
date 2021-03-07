@@ -19,8 +19,7 @@ public class SeiTchizServer {
 			System.err.println("SeiTchizServer no porto " + PORT);
 			System.exit(0);
 		}
-		System.out.println("Conexaoo feita ao porto " + port);
-
+		System.out.println("Conexão feita ao porto " + port);
 		// se ledgerFile ainda nao existe create one
 		createLedgerFile();
 

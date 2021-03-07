@@ -27,6 +27,7 @@ public class ServerActions {
 		this.in = in;
 		// this.out = out;
 		createImagesFolder();
+		
 	}
 
 	public boolean comecaAccoes() {
@@ -71,8 +72,10 @@ public class ServerActions {
 			Path path = Paths.get(IMAGES_FOLDER);
 			// java.nio.file.Files;
 			Files.createDirectories(path);
+			Path path_groups = Paths.get(GROUPS_FOLDER);
+			Files.createDirectories(path_groups);
 		} catch (IOException e) {
-			System.err.println("Erro: pasta de fotografias não criada" + e.getMessage());
+			System.err.println("Erro: pasta de fotografias nÃ£o criada" + e.getMessage());
 		}
 	}
 
@@ -295,7 +298,7 @@ public class ServerActions {
 			Path path = Paths.get(folderName);
 			Files.createDirectories(path);
 		} catch (IOException e) {
-			System.err.println("Erro: pasta de fotografias não criada" + e.getMessage());
+			System.err.println("Erro: pasta de fotografias nï¿½o criada" + e.getMessage());
 			return photoID;
 		}
 
