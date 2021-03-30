@@ -120,28 +120,37 @@ public class ServerActions {
 	}
 
 	public boolean followUser(String userToFollow) throws IOException {
+		
+		if(userToFollow.equals(this.user)) {
+			System.err.println("Não é possível seguir-se a si mesmo.");
+			return false;
+		}
+		
 		boolean followersFile = false;
 		boolean followingFile = false;
 
-		// followers file
-		followersFile = addToFollowers(userToFollow);
-		if (!followersFile) {
-			System.out.println("Problem adding to followers file...");
-		}
+		try {
+			
+			// followers file
+			followersFile = addToFollowers(userToFollow);
+			if (!followersFile) {
+				System.out.println("Problem adding to followers file...");
+			}
 
-		// following file
-		followingFile = addToFollowing(userToFollow);
-		if (!followingFile) {
-			System.out.println("Problem adding to following file...");
+			// following file
+			followingFile = addToFollowing(userToFollow);
+			if (!followingFile) {
+				System.out.println("Problem adding to following file...");
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		return followersFile && followingFile;
 	}
 
-	private boolean addToFollowing(String userToFollow) {
-		if(userToFollow.equals(this.user)) {
-			System.err.println("Não é possível seguir-se a si mesmo.");
-		}
+	private boolean addToFollowing(String userToFollow) throws Exception {
 		boolean follow = false;
 		boolean found = false;
 
@@ -160,7 +169,7 @@ public class ServerActions {
 							line = line + "," + userToFollow;
 							follow = true;
 						} else {
-							System.err.println("Já se encontra a seguir este utilizador.");
+							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
 						line = line + userToFollow;
@@ -171,7 +180,7 @@ public class ServerActions {
 				}
 			}
 			if (!found) {
-				System.err.println("Utilizador não foi encontrado");
+				throw new Exception("Utilizador não foi encontrado");
 			}
 			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
 		} catch (IOException e) {
@@ -181,12 +190,10 @@ public class ServerActions {
 		return follow;
 	}
 
-	private boolean addToFollowers(String userToFollow) {
-		if(userToFollow.equals(this.user)) {
-			System.err.println("Não é possível seguir-se a si mesmo.");
-		}
+	private boolean addToFollowers(String userToFollow) throws Exception {
 		boolean follow = false;
 		boolean found = false;
+		
 		try {
 			List<String> fileContent_followers;
 			fileContent_followers = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
@@ -202,7 +209,7 @@ public class ServerActions {
 							line = line + "," + user;
 							follow = true;
 						}else {
-							System.err.println("Já se encontra a seguir este utilizador.");
+							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
 						line = line + user;
@@ -213,7 +220,7 @@ public class ServerActions {
 				}
 			}
 			if (!found) {
-				System.err.println("Utilizador não foi encontrado");
+				throw new Exception("Utilizador não foi encontrado");
 			}
 			Files.write(Paths.get(followers), fileContent_followers, StandardCharsets.UTF_8);
 		} catch (IOException e) {
@@ -224,41 +231,62 @@ public class ServerActions {
 	}
 
 	public boolean unfollowUser(String userToUnfollow) throws IOException {
+		
+		if(userToUnfollow.equals(this.user)) {
+			System.err.println("Não é permitido deixar de seguir o próprio.");
+			return false;
+		}
+		
 		boolean followersFile = false;
 		boolean followingFile = false;
 
-		// followers file
-		followersFile = removeFromFollowers(userToUnfollow);
-		if (!followersFile) {
-			System.out.println("Problem removing from followers file...");
-		}
+		
+		try {
+			
+			// followers file
+			followersFile = removeFromFollowers(userToUnfollow);
+			if (!followersFile) {
+				System.out.println("Problem removing from followers file...");
+			}
 
-		// following file
-		followingFile = removeFromFollowing(userToUnfollow);
-		if (!followingFile) {
-			System.out.println("Problem removing from following file...");
+			// following file
+			followingFile = removeFromFollowing(userToUnfollow);
+			if (!followingFile) {
+				System.out.println("Problem removing from following file...");
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		return followersFile && followingFile;
 	}
 
-	private boolean removeFromFollowers(String userToUnfollow) throws IOException {
+	private boolean removeFromFollowers(String userToUnfollow) throws Exception {
 		boolean unfollow = false;
+		boolean wasFollowing = false;
+		boolean userUnfollowFound = false;
+		
 		List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
 		for (int i = 0; i < fileContent.size(); i++) {
 			String line = fileContent.get(i);
 			String[] split = line.split(":");
 			String userUnfollow = split[0];
-			if (userUnfollow.equals(userToUnfollow) && !userToUnfollow.equals(user)) {
+			if (userUnfollow.equals(userToUnfollow)) {
+				userUnfollowFound = true;
 				if (split.length > 1) {
 					String[] followersArray = split[1].split(",");
 					ArrayList<String> followersList = new ArrayList<>(Arrays.asList(followersArray));
 					for (int j = 0; j < followersList.size(); j++) {
 						if (followersList.get(j).equals(user)) {
+							wasFollowing = true;
 							followersList.remove(j);
 							unfollow = true;
 							break;
 						}
+					}
+					if (!wasFollowing) {
+						throw new Exception("Não se encontrava a seguir esse utilizador.");
 					}
 					line = userToUnfollow + ":";
 					for (int j = 0; j < followersList.size(); j++) {
@@ -273,12 +301,17 @@ public class ServerActions {
 				break;
 			}
 		}
+		if (!userUnfollowFound) {
+			throw new Exception("Não foi encontrado o user que pretende deixar de seguir.");
+		}
 		Files.write(Paths.get(followers), fileContent, StandardCharsets.UTF_8);
 		return unfollow;
 	}
 	
-	private boolean removeFromFollowing(String userToUnfollow){
+	private boolean removeFromFollowing(String userToUnfollow) throws Exception{
 		boolean unfollow = false;
+		boolean userUnfollowFound = false;
+		
 		List<String> fileContent_following;
 		try {
 			fileContent_following = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
@@ -286,16 +319,20 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.equals(this.user) && !userToUnfollow.equals(this.user)) {
+				if (myuser.equals(this.user)) {
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
 						ArrayList<String> followingList = new ArrayList<>(Arrays.asList(followingArray));
 						for (int j = 0; j < followingList.size(); j++) {
 							if (followingList.get(j).equals(userToUnfollow)) {
+								userUnfollowFound = true;
 								followingList.remove(j);
 								unfollow = true;
 								break;
 							}
+						}
+						if (!userUnfollowFound) {
+							throw new Exception("Não foi possível deixar de seguir esse user pq não existe ou não o estava a seguir.");
 						}
 						line = myuser + ":";
 						for (int j = 0; j < followingList.size(); j++) {
