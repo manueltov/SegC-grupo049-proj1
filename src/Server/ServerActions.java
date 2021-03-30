@@ -1,20 +1,26 @@
 package Server;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.cert.Certificate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
+
+import SeiTchizKeys.Keys;
+import SeiTchizKeys.KeysServer;
 
 public class ServerActions {
 	private String user = "";
-	private String password = "";
 	private ObjectInputStream in = null;
+	private ObjectOutputStream out;
 	private static final String txt = ".txt";
 	private static final String followers = "followers" + txt;
 	private static final String following = "following" + txt;
@@ -22,12 +28,11 @@ public class ServerActions {
 	private static final String GROUPS_FOLDER = "./src/Server/Groups";
 	// private static final String USERS = "users.txt"; //not used
 	private static final String IMAGES_FOLDER = "./src/Server/Images";
-
+	
 	public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
 		this.in = in;
-		// this.out = out;
+		this.out = out;
 		createImagesFolder();
-		
 	}
 
 	public boolean comecaAccoes() {
@@ -42,29 +47,64 @@ public class ServerActions {
 		}
 		return false;
 	}
-
+	private KeysServer keyServer = null;
+	public void loadKeys(KeysServer keyServer) {
+		this.keyServer=keyServer;
+	}
 	private boolean autenticacao() throws ClassNotFoundException, IOException {
+		
 		boolean existsUser;
+		//user recebido
 		user = (String) in.readObject();
-		password = (String) in.readObject();
+		
 		// ver se utilizador já existe
 		existsUser = AuthenticationServer.getInstance().existsUser(user);
-		// out.flush();
-		// out.writeObject(existsUser);
-		// se não existir, cria um novo
+	
+		long code = (new Random()).nextLong();
+		
+		System.out.println("Código enviado ao servidor");
+		
+		//envia o long
+		out.flush();
+		out.writeObject(code);
+		
+		//ve se ja existe
+		out.flush();
+		out.writeObject(existsUser);
+		
+		//nonce cifrado pelo user
+		byte[] codeByte = (byte[]) in.readObject();
+		
+		//certificado do user
+		Certificate certificate = null;
+		
+		// se nao existir, cria um novo guardando o seu .cer
 		if (!existsUser) {
-			AuthenticationServer.getInstance().registerUser(user, password);
-			return true;
+		
+			//guarda o certificado do client no servidor
+			certificate = (Certificate) in.readObject();
+			KeysServer.saveUserCertificate(user,certificate);
+	
 		}
-		// se existir, verificar a password
-		else {
-			boolean login = AuthenticationServer.getInstance().checkPassword(user, password);
-			if (login) {
-				return true;
-			} else {
-				return false;
-			}
+	
+		certificate = KeysServer.getUserCertificate(user);
+		
+		//chve publica cert
+		byte[] decodeByte = Keys.decipher(codeByte,certificate.getPublicKey());
+		
+		long codeUser = ByteBuffer.wrap(decodeByte).getLong();
+		
+		boolean validation = code == codeUser;
+		
+		System.out.println("Validação do Cliente: "+ validation);
+		out.flush();
+		out.writeObject(validation);
+		
+		if ( !existsUser && validation) {
+			AuthenticationServer.getInstance().registerUser(user);
 		}
+		
+		return existsUser;
 	}
 
 	private static void createImagesFolder() {
@@ -75,7 +115,7 @@ public class ServerActions {
 			Path path_groups = Paths.get(GROUPS_FOLDER);
 			Files.createDirectories(path_groups);
 		} catch (IOException e) {
-			System.err.println("Erro: pasta de fotografias não criada" + e.getMessage());
+			System.err.println("Erro: pasta de fotografias nao criada" + e.getMessage());
 		}
 	}
 
@@ -823,4 +863,6 @@ public class ServerActions {
 		}
 		return file;
 	}
+	
+		 
 }

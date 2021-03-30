@@ -26,11 +26,11 @@ public class AuthenticationServer {
 		return autentica;
 	}
 
-	// falta meter pass
-	public boolean registerUser(String user, String password) throws IOException {
+	
+	public boolean registerUser(String user) throws IOException {
 		File file = openFile(utilizadores);
 		BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
-		writer.write(user + ":" + password + "\n");
+		writer.write(user + "\n");
 		writer.close();
 
 		// followers file
@@ -45,19 +45,19 @@ public class AuthenticationServer {
 		writer.write(user + ":\n");
 		writer.close();
 
-		System.out.println("User adicionado com respetiva password " + user);
+		System.out.println("User adicionado " + user);
 		return true;
 	}
 
-	public boolean existsUser(String user) {
+	public boolean existsUser(String username) {
 		File usersFile = openFile(utilizadores);
 		try (Scanner reader = new Scanner(usersFile)) {
 			while (reader.hasNextLine()) {
-				String line = reader.nextLine();
-				String[] split = line.split(":");
-				String username = split[0];
-				if (user.equals(username)) {
-					System.out.println("User " + user + " existe");
+				//String line = reader.nextLine();
+				//String[] split = line.split(":");
+				//String username = split[0];
+				if (username.equals(reader.nextLine())) {
+					System.out.println("User " + username + " existe");
 					return true;
 				}
 			}
@@ -67,7 +67,8 @@ public class AuthenticationServer {
 		return false;
 	}
 
-	public boolean checkPassword(String username, String password) {
+	//não usado
+	/*public boolean checkTrustStore(String username, String trust_store) {
 		boolean valid = false;
 		File usersFile = openFile(utilizadores);
 		try (Scanner reader = new Scanner(usersFile)) {
@@ -76,7 +77,7 @@ public class AuthenticationServer {
 				String[] split = line.split(":");
 				String user = split[0];
 				String pw = split[1];
-				if (username.equals(user) && password.equals(pw)) {
+				if (username.equals(user) && trust_store.equals(pw)) {
 					valid = true;
 					break;
 				}
@@ -85,13 +86,13 @@ public class AuthenticationServer {
 			System.err.println(" Erro ao ler o ficheiro de utilizadores.");
 		}
 		if (valid) {
-			System.out.println("User " + username + ":" + password + " correto");
+			System.out.println("User " + username + ":" + trust_store + " correto");
 		} else {
-			System.out.println("User " + username + ":" + password + " incorreto");
+			System.out.println("User " + username + ":" + trust_store + " incorreto");
 		}
 		return valid;
 	}
-
+	*/
 	private File openFile(String str) {
 		File file = new File(str);
 		File folders = file.getParentFile();

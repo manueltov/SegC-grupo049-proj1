@@ -4,14 +4,19 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import javax.net.ServerSocketFactory;
+import javax.net.ssl.SSLServerSocketFactory;
+
+import SeiTchizKeys.KeysServer;
+
 public class SeiTchizServer {
 	private static int PORT = 45678;
 	private static final String txt = ".txt";
 	private static final String ledger = "ledger" + txt;
 
 	public static void main(String[] args) {
-		if (args.length != 1) {
-			System.err.println("Server tem que correr com o comando: 'SeiTchizServer <port>'");
+		if (args.length != 3) {
+			System.err.println("Server tem que correr com o comando: 'SeiTchizServer <port> <keystore> <keystore-password>'");
 			System.exit(0);
 		}
 		int port = Integer.parseInt(args[0]);
@@ -19,19 +24,38 @@ public class SeiTchizServer {
 			System.err.println("SeiTchizServer no porto " + PORT);
 			System.exit(0);
 		}
-		System.out.println("Conexão feita ao porto " + port);
+		
+		//
+		String keyStore = "src"+File.separator+"Server"+File.separator+args[1];
+		String keyStorePass = args[2];
+		System.out.println("Conexao feita ao porto " + port);
 		// se ledgerFile ainda nao existe create one
 		createLedgerFile();
 
+		
+		
 		SeiTchizServer server = new SeiTchizServer();
+		server.loadCertificate(keyStore,keyStorePass);
+		System.out.println("KeyStore válida");
 		server.startServer(port);
 	}
-
+	private KeysServer keysServer = null;
+	
+	private void loadCertificate(String keyStore, String keyStorePass) {
+		
+		System.setProperty("javax.net.ssl.keyStore", keyStore);
+		System.setProperty("javax.net.ssl.keyStorePassword", keyStorePass);
+		
+		keysServer=new KeysServer(keyStore,keyStorePass);
+		
+	}
+	
 	private void startServer(int port) {
-		ServerSocket serverSocket = null;
-		Socket socket = null;
+		
+		ServerSocketFactory ssf = SSLServerSocketFactory.getDefault();
+		ServerSocket serverSocket=null;
 		try {
-			serverSocket = new ServerSocket(port);
+			serverSocket = ssf.createServerSocket(port);
 			System.out.println("Servidor criado");
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
@@ -39,9 +63,9 @@ public class SeiTchizServer {
 		}
 		while (true) {
 			try {
-				socket = serverSocket.accept();
+				
 				System.out.println("Mensagem recebida");
-				ServerThread newServerThread = new ServerThread(socket);
+				ServerThread newServerThread = new ServerThread(serverSocket.accept());
 				newServerThread.start();
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -96,16 +120,22 @@ public class SeiTchizServer {
 				ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
 				ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
 				ServerActions acc = new ServerActions(inStream, outStream);
-				boolean login = acc.comecaAccoes();
-				outStream.writeObject(login);
-				outStream.flush();
+				
+				acc.loadKeys(keysServer);
+				
+				acc.comecaAccoes();
+			     
+				//outStream.writeObject(login);
+				//outStream.flush();
 
 				String mesReceived = "";
 				String mesSent;
-				// enquanto o servidor não receber uma mensagem a dizer 'stop' ele continua à
+			
+				// enquanto o servidor nao receber uma mensagem a dizer 'stop' ele continua à
 				// espera de pedidos
 				while (!mesReceived.equals("stop")) {
 					acc.printGroups();
+					
 					mesReceived = (String) inStream.readObject();
 					mesReceived = mesReceived.toLowerCase();
 					System.out.println(mesReceived);

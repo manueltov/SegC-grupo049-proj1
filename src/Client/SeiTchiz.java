@@ -4,49 +4,106 @@ package Client;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.security.cert.Certificate;
+
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+
+import SeiTchizKeys.KeysClient;
+
 
 public class SeiTchiz {
     private Socket socketClient = null;
     private static int PORT = 45678;
+    private KeysClient keysClient = null;
+    
     public static void main(String[] args) {
         System.out.println("cliente SeiTchiz inicio");
-        if (args.length < 3) {
+        if (args.length != 5) {
             //127.0.0.1:45678
-            System.err.println("Passe os dados desta maneira: <serverAddress> <username> <password>");
+            System.err.println("Passe os dados desta maneira: <serverAddress> <truststore> <keystore> <keystore-password> <username> ");
             System.exit(0);
         }
-        // Args
+        // Args serveradress
         String[] serverAddress = args[0].split(":");
         String ip = serverAddress[0];
         int port = Integer.parseInt(serverAddress[1]);
         System.out.println("---------" + ip + ":" + port + "---------");
+        
         if(port != PORT) {
             System.err.println("Só se liga ao porto 45678");
             System.exit(-1);
         }
-        String username = args[1];
-        String password = args[2];
+        //user
+        String username = args[4];
+        String path = "src"+File.separator+"Client"+File.separator+"PubKeys"+File.separator+username+File.separator;
+        
+        String keyStore=path+username+"Store";
+        
+        String truststore =path+"trustore.client";
+        String keyStorePass=args[3];
+       
         SeiTchiz client = new SeiTchiz();
-        client.startClient(ip, port, username, password);
+        
+        
+        client.loadCertificate(username,truststore,keyStore,keyStorePass);
+        System.out.println("KeyStore válida do Cliente");
+        client.startClient(ip, port, username);
+        
+       
     }
-
-    private void startClient(String ip, int port, String user, String password) {
+    
+    
+    private void loadCertificate(String username, String truststore, String keyStore, String keyStorePass) {
+      
+    	System.setProperty("javax.net.ssl.trustStore",truststore);    
+        System.setProperty("javax.net.ssl.keyStore",keyStore);
+        System.setProperty("javax.net.ssl.keyStorePassword",keyStorePass);
+	
+		keysClient = new KeysClient(username,keyStore,keyStorePass);
+	}
+	
+    
+	private void startClient(String ip, int port, String user) {
         try {
-            socketClient = new Socket(ip, port);
+        	
+        	SocketFactory sf = SSLSocketFactory.getDefault();
+            socketClient = sf.createSocket(ip, port);
 
             ObjectOutputStream outStream = new ObjectOutputStream(socketClient.getOutputStream());
             ObjectInputStream inStream = new ObjectInputStream(socketClient.getInputStream());
-            BufferedReader br=new BufferedReader(new InputStreamReader(System.in));
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
-            //envia credenciais e verifica login
+         
+            //envia credenciais e verifica login pelo user 
             outStream.writeObject(user);
-            outStream.writeObject(password);
+            //servidor responde com um long 
+            long code = (long) inStream.readObject();
+           
+            //recebe login true ou false
             String response = inStream.readObject().toString();
-            if (response.equals("false")) {
-                System.out.println("Desconectado!");
-                return;
+            
+            System.out.println("Código recebido do Servidor");
+
+
+            byte[] codeByte = ByteBuffer.allocate(Long.BYTES).putLong(code).array();
+            byte[] cipherByte = keysClient.cripherPrivate(codeByte);
+            byte[] longCifrado = (byte[])  cipherByte;
+            
+            outStream.writeObject(longCifrado);
+            outStream.flush();
+
+            if(response.equals("false")) {
+            	Certificate certificate = keysClient.getCertificate();
+            	outStream.flush();
+				outStream.writeObject(certificate);
             }
-            else {
+
+            boolean confirmation =  (boolean) inStream.readObject();
+
+            if (confirmation==true) {
+            	
                 System.out.println("Conectado!");
                 System.out.println("*********************************");
                 System.out.println("======= MENU DE COMANDOS ========");
@@ -74,10 +131,15 @@ public class SeiTchiz {
                     System.out.println(str2);
                 }
             }
+            else{
+                System.out.println("Desconectado!");
+                return;
+            }
             outStream.close();
             inStream.close();
             socketClient.close();
         }
+
         catch (IOException | ClassNotFoundException e) {
             System.err.println(e.getMessage());
             System.exit(-1);
