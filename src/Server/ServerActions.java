@@ -139,7 +139,11 @@ public class ServerActions {
 	}
 
 	private boolean addToFollowing(String userToFollow) {
+		if(userToFollow.equals(this.user)) {
+			System.err.println("Não é possível seguir-se a si mesmo.");
+		}
 		boolean follow = false;
+		boolean found = false;
 
 		List<String> fileContent_following;
 		try {
@@ -148,12 +152,15 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.equals(this.user) && !userToFollow.equals(this.user)) {
+				if (myuser.equals(this.user)) {
+					found = true;
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
 						if (!Arrays.asList(followingArray).contains(userToFollow)) {
 							line = line + "," + userToFollow;
 							follow = true;
+						} else {
+							System.err.println("Já se encontra a seguir este utilizador.");
 						}
 					} else {
 						line = line + userToFollow;
@@ -163,16 +170,23 @@ public class ServerActions {
 					break;
 				}
 			}
+			if (!found) {
+				System.err.println("Utilizador não foi encontrado");
+			}
 			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
 		} catch (IOException e) {
-			System.out.println("Problem adding to following.txt");
+			System.out.println("Not added to following.txt");
 			// e.printStackTrace();
 		}
 		return follow;
 	}
 
 	private boolean addToFollowers(String userToFollow) {
+		if(userToFollow.equals(this.user)) {
+			System.err.println("Não é possível seguir-se a si mesmo.");
+		}
 		boolean follow = false;
+		boolean found = false;
 		try {
 			List<String> fileContent_followers;
 			fileContent_followers = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
@@ -180,12 +194,15 @@ public class ServerActions {
 				String line = fileContent_followers.get(i);
 				String[] split = line.split(":");
 				String userFollow = split[0];
-				if (userFollow.equals(userToFollow) && !userToFollow.equals(user)) {
+				if (userFollow.equals(userToFollow)){
+					found = true;
 					if (split.length > 1) {
 						String[] followersArray = split[1].split(",");
 						if (!Arrays.asList(followersArray).contains(user)) {
 							line = line + "," + user;
 							follow = true;
+						}else {
+							System.err.println("Já se encontra a seguir este utilizador.");
 						}
 					} else {
 						line = line + user;
@@ -195,9 +212,12 @@ public class ServerActions {
 					break;
 				}
 			}
+			if (!found) {
+				System.err.println("Utilizador não foi encontrado");
+			}
 			Files.write(Paths.get(followers), fileContent_followers, StandardCharsets.UTF_8);
 		} catch (IOException e) {
-			System.out.println("Problem adding to followers.txt");
+			System.out.println("Not added to followers.txt");
 			// e.printStackTrace();
 		}
 		return follow;
