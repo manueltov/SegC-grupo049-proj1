@@ -28,7 +28,7 @@ public class ServerActions {
 	private static final String GROUPS_FOLDER = "./src/Server/Groups";
 	// private static final String USERS = "users.txt"; //not used
 	private static final String IMAGES_FOLDER = "./src/Server/Images";
-	
+
 	public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
 		this.in = in;
 		this.out = out;
@@ -47,63 +47,66 @@ public class ServerActions {
 		}
 		return false;
 	}
+
 	private KeysServer keyServer = null;
+
 	public void loadKeys(KeysServer keyServer) {
-		this.keyServer=keyServer;
+		this.keyServer = keyServer;
 	}
+
 	private boolean autenticacao() throws ClassNotFoundException, IOException {
-		
+
 		boolean existsUser;
-		//user recebido
+		// user recebido
 		user = (String) in.readObject();
-		
+
 		// ver se utilizador já existe
 		existsUser = AuthenticationServer.getInstance().existsUser(user);
-	
+
 		long code = (new Random()).nextLong();
-		
+
 		System.out.println("Código enviado ao servidor");
-		
-		//envia o long
+
+		// envia o long
 		out.flush();
 		out.writeObject(code);
-		
-		//ve se ja existe
+
+		// ve se ja existe
 		out.flush();
 		out.writeObject(existsUser);
-		
-		//nonce cifrado pelo user
+
+		// nonce cifrado pelo user
 		byte[] codeByte = (byte[]) in.readObject();
-		
-		//certificado do user
+
+		// certificado do user
 		Certificate certificate = null;
-		
+
 		// se nao existir, cria um novo guardando o seu .cer
 		if (!existsUser) {
-		
-			//guarda o certificado do client no servidor
+
+			// guarda o certificado do client no servidor
 			certificate = (Certificate) in.readObject();
-			KeysServer.saveUserCertificate(user,certificate);
-	
+			KeysServer.saveUserCertificate(user, certificate);
+
 		}
-	
+
 		certificate = KeysServer.getUserCertificate(user);
-		
-		//chve publica cert
-		byte[] decodeByte = Keys.decipher(codeByte,certificate.getPublicKey());
-		
+
+		// chve publica cert
+		byte[] decodeByte = Keys.decipher(codeByte, certificate.getPublicKey());
+
 		long codeUser = ByteBuffer.wrap(decodeByte).getLong();
-		
+
 		boolean validation = code == codeUser;
-		
-		System.out.println("Validação do Cliente: "+ validation);
+
+		System.out.println("Validação do Cliente: " + validation);
 		out.flush();
 		out.writeObject(validation);
-		
-		if ( !existsUser && validation) {
+
+		if (!existsUser && validation) {
 			AuthenticationServer.getInstance().registerUser(user);
 		}
-		
+
 		return existsUser;
 	}
 
@@ -120,17 +123,17 @@ public class ServerActions {
 	}
 
 	public boolean followUser(String userToFollow) throws IOException {
-		
-		if(userToFollow.equals(this.user)) {
+
+		if (userToFollow.equals(this.user)) {
 			System.err.println("Não é possível seguir-se a si mesmo.");
 			return false;
 		}
-		
+
 		boolean followersFile = false;
 		boolean followingFile = false;
 
 		try {
-			
+
 			// followers file
 			followersFile = addToFollowers(userToFollow);
 			if (!followersFile) {
@@ -142,7 +145,7 @@ public class ServerActions {
 			if (!followingFile) {
 				System.out.println("Problem adding to following file...");
 			}
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -193,7 +196,7 @@ public class ServerActions {
 	private boolean addToFollowers(String userToFollow) throws Exception {
 		boolean follow = false;
 		boolean found = false;
-		
+
 		try {
 			List<String> fileContent_followers;
 			fileContent_followers = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
@@ -201,14 +204,14 @@ public class ServerActions {
 				String line = fileContent_followers.get(i);
 				String[] split = line.split(":");
 				String userFollow = split[0];
-				if (userFollow.equals(userToFollow)){
+				if (userFollow.equals(userToFollow)) {
 					found = true;
 					if (split.length > 1) {
 						String[] followersArray = split[1].split(",");
 						if (!Arrays.asList(followersArray).contains(user)) {
 							line = line + "," + user;
 							follow = true;
-						}else {
+						} else {
 							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
@@ -231,18 +234,17 @@ public class ServerActions {
 	}
 
 	public boolean unfollowUser(String userToUnfollow) throws IOException {
-		
-		if(userToUnfollow.equals(this.user)) {
+
+		if (userToUnfollow.equals(this.user)) {
 			System.err.println("Não é permitido deixar de seguir o próprio.");
 			return false;
 		}
-		
+
 		boolean followersFile = false;
 		boolean followingFile = false;
 
-		
 		try {
-			
+
 			// followers file
 			followersFile = removeFromFollowers(userToUnfollow);
 			if (!followersFile) {
@@ -254,7 +256,7 @@ public class ServerActions {
 			if (!followingFile) {
 				System.out.println("Problem removing from following file...");
 			}
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -266,7 +268,7 @@ public class ServerActions {
 		boolean unfollow = false;
 		boolean wasFollowing = false;
 		boolean userUnfollowFound = false;
-		
+
 		List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
 		for (int i = 0; i < fileContent.size(); i++) {
 			String line = fileContent.get(i);
@@ -307,11 +309,11 @@ public class ServerActions {
 		Files.write(Paths.get(followers), fileContent, StandardCharsets.UTF_8);
 		return unfollow;
 	}
-	
-	private boolean removeFromFollowing(String userToUnfollow) throws Exception{
+
+	private boolean removeFromFollowing(String userToUnfollow) throws Exception {
 		boolean unfollow = false;
 		boolean userUnfollowFound = false;
-		
+
 		List<String> fileContent_following;
 		try {
 			fileContent_following = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
@@ -332,7 +334,8 @@ public class ServerActions {
 							}
 						}
 						if (!userUnfollowFound) {
-							throw new Exception("Não foi possível deixar de seguir esse user pq não existe ou não o estava a seguir.");
+							throw new Exception(
+									"Não foi possível deixar de seguir esse user pq não existe ou não o estava a seguir.");
 						}
 						line = myuser + ":";
 						for (int j = 0; j < followingList.size(); j++) {
@@ -346,7 +349,7 @@ public class ServerActions {
 					fileContent_following.set(i, line);
 					break;
 				}
-			}			
+			}
 			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			System.out.println("Problem removing from following.txt");
@@ -510,7 +513,7 @@ public class ServerActions {
 		if (numeroPhotos < 1) {
 			System.out.println("Erro: tem de pedir uma ou mais fotos.");
 		}
-		
+
 		String photosToPrint = null;
 
 		// ir buscar as pessoas q se segue
@@ -522,7 +525,7 @@ public class ServerActions {
 			// e.printStackTrace();
 			return photosToPrint;
 		}
-		
+
 		if (following.equals("Nao segue ninguem\n")) {
 			System.out.println("Nao segues ninguem por isso nao ha fotos para apresentar.");
 			return null;
@@ -532,16 +535,16 @@ public class ServerActions {
 		String[] followingList = following.split(",");
 		List<String> followingStringList = new ArrayList<String>(Arrays.asList(followingList));
 		StringBuilder sb = new StringBuilder();
-		
+
 		try {
 			int photoCounter = Integer.parseInt(nPhotos);
 			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
-			
+
 			if (fileContent.size() <= 1) {
 				System.out.println("Nao ha fotos para apresentar.");
 				return null;
 			}
-			
+
 			int ultimaLinha = fileContent.size() - 1;
 			System.out.println(ultimaLinha);
 			while (photoCounter != 0) {
@@ -920,6 +923,5 @@ public class ServerActions {
 		}
 		return file;
 	}
-	
-		 
+
 }
