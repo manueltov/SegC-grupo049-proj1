@@ -137,13 +137,13 @@ public class ServerActions {
 			// followers file
 			followersFile = addToFollowers(userToFollow);
 			if (!followersFile) {
-				System.out.println("Problem adding to followers file...");
+				System.err.println("Problem adding to followers file...");
 			}
 
 			// following file
 			followingFile = addToFollowing(userToFollow);
 			if (!followingFile) {
-				System.out.println("Problem adding to following file...");
+				System.err.println("Problem adding to following file...");
 			}
 
 		} catch (Exception e) {
@@ -358,35 +358,48 @@ public class ServerActions {
 		return unfollow;
 	}
 
-	public String viewfollowers() throws IOException {
-		String followersString = "Nao tem seguidores\n";
-		ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
-		for (int i = 0; i < fileContent.size(); i++) {
-			String line = fileContent.get(i);
-			String[] split = line.split(":");
-			String username = split[0];
-			if (username.toLowerCase().equals(user.toLowerCase())) {
-				if (split.length > 1) {
-					followersString = split[1];
-				} else {
-					System.err.println("Não tem seguidores");
+	public String viewFollowers(){
+		String followersString = null;
+		try {
+			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent.size(); i++) {
+				String line = fileContent.get(i);
+				String[] split = line.split(":");
+				String username = split[0];
+				if (username.toLowerCase().equals(user.toLowerCase())) {
+					if (split.length > 1) {
+						followersString = split[1];
+					} else {
+						System.out.println("Não tem seguidores.");
+					}
 				}
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println("Error: reading followers file.");
 		}
 		return followersString;
 	}
 
-	public String following() throws IOException {
-		String followingString = "Nao segue ninguem\n";
-		ArrayList<String> fileContent = new ArrayList<>(
-				Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
-		for (int i = 0; i < fileContent.size(); i++) {
-			String line = fileContent.get(i);
-			String[] split = line.split(":");
-			String username = split[0];
-			if (username.equals(user) && split.length > 1) {
-				followingString = split[1];
+	public String viewFollowing(){
+		String followingString = null;
+		try {
+			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent.size(); i++) {
+				String line = fileContent.get(i);
+				String[] split = line.split(":");
+				String username = split[0];
+				if (username.toLowerCase().equals(user.toLowerCase())) {
+					if (split.length > 1) {
+						followingString = split[1];
+					} else {
+						System.out.println("Não segue ninguém.");
+					}
+				}
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println("Error: reading following file.");
 		}
 		return followingString;
 	}
@@ -514,24 +527,19 @@ public class ServerActions {
 	public String wall(String nPhotos) {
 		int numeroPhotos = Integer.parseInt(nPhotos);
 		if (numeroPhotos < 1) {
-			System.out.println("Erro: tem de pedir uma ou mais fotos.");
+			System.err.println("Erro: user tem de pedir uma ou mais fotos.");
 		}
 
 		String photosToPrint = null;
 
 		// ir buscar as pessoas q se segue
 		String following = null;
-		try {
-			following = following();
-		} catch (IOException e) {
-			System.out.println("Error getting who am i following...");
-			// e.printStackTrace();
-			return photosToPrint;
-		}
+		following = viewFollowing();
 
-		if (following.equals("Nao segue ninguem\n")) {
-			System.out.println("Nao segues ninguem por isso nao ha fotos para apresentar.");
-			return null;
+		if (following == null) {
+			photosToPrint = "Nao segue ninguém por isso nao há fotos para apresentar.";
+			System.out.println(photosToPrint);
+			return photosToPrint;
 		}
 
 		// a cada pessoa q se segue pegar nas fotos
@@ -544,12 +552,12 @@ public class ServerActions {
 			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
 
 			if (fileContent.size() <= 1) {
-				System.out.println("Nao ha fotos para apresentar.");
-				return null;
+				photosToPrint = "Não há fotos para apresentar.";
+				System.out.println(photosToPrint);
+				return photosToPrint;
 			}
 
 			int ultimaLinha = fileContent.size() - 1;
-			System.out.println(ultimaLinha);
 			while (photoCounter != 0) {
 				String line = fileContent.get(ultimaLinha);
 				String[] split = line.split(":");
@@ -557,7 +565,7 @@ public class ServerActions {
 				String photoID = split[1];
 				String photoName = split[2];
 				String photoLikes = split[3];
-				if (followingStringList.contains(userFromList)) {
+				if (followingStringList.contains(userFromList.toLowerCase())) {
 					String text = "A foto com ID " + photoID + ", nome: " + photoName + ", tem " + photoLikes
 							+ " likes.\n";
 					sb.append(text);
@@ -576,14 +584,14 @@ public class ServerActions {
 		return photosToPrint;
 	}
 
-	public boolean like(String photoID) {
+	public boolean like(String photoID) throws Exception {
 		boolean liked = false;
 
 		// Get the photo info
 		String[] photoInfo = getPhotoInfo(photoID);
 		if (photoInfo == null) {
 			System.out.println("Error, getting that photoID...");
-			return liked;
+			throw new Exception("Error, getting that photoID...");
 		}
 
 		// increment likes of that photo
@@ -596,7 +604,6 @@ public class ServerActions {
 		if (updatePhotoInfo(photoID, photoInfo)) {
 			liked = true;
 		}
-
 		return liked;
 	}
 

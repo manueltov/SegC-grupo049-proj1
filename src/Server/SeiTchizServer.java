@@ -144,7 +144,12 @@ public class SeiTchizServer {
 					if (split.length == 1) {
 						String command = split[0];
 						if (command.equals("v") || command.equals("viewfollowers")) {
-							mesSent = "Seguidores:\n" + acc.viewfollowers();
+							String viewFollowers = acc.viewFollowers();
+							if (viewFollowers != null) {
+								mesSent = "Seguidores:\n" + viewFollowers;
+							} else {
+								mesSent = "Não tem seguidores.";
+							}
 						}
 						if (command.equals("g") || command.equals("ginfo")) {
 							mesSent = "Os meus grupos:\n" + acc.listGroups();
@@ -185,11 +190,16 @@ public class SeiTchizServer {
 							}
 						} else if (command.equals("l") || command.equals("like")) {
 							String photoID = split[1];
-							boolean liked = acc.like(photoID);
-							if (liked) {
-								mesSent = "Fotografia com ID: " + photoID + " liked.";
-							} else {
-								mesSent = "nao foi possivel fazer like na foto com ID: " + photoID;
+							boolean liked;
+							try {
+								liked = acc.like(photoID);
+								if (liked) {
+									mesSent = "Fotografia com ID: " + photoID + " liked.";
+								} else {
+									mesSent = "nao foi possivel fazer like na foto com ID: " + photoID;
+								}
+							} catch (Exception e) {
+								e.printStackTrace();
 							}
 						} else if (command.equals("n") || command.equals("newgroup")) {
 							String groupID = split[1];
