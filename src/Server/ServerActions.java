@@ -164,18 +164,18 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.equals(this.user)) {
+				if (myuser.toLowerCase().equals(this.user.toLowerCase())) {
 					found = true;
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
-						if (!Arrays.asList(followingArray).contains(userToFollow)) {
-							line = line + "," + userToFollow;
+						if (!Arrays.asList(followingArray).contains(userToFollow.toLowerCase())) {
+							line = line + "," + userToFollow.toLowerCase();
 							follow = true;
 						} else {
 							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
-						line = line + userToFollow;
+						line = line + userToFollow.toLowerCase();
 						follow = true;
 					}
 					fileContent_following.set(i, line);
@@ -204,18 +204,18 @@ public class ServerActions {
 				String line = fileContent_followers.get(i);
 				String[] split = line.split(":");
 				String userFollow = split[0];
-				if (userFollow.equals(userToFollow)) {
+				if (userFollow.toLowerCase().equals(userToFollow.toLowerCase())) {
 					found = true;
 					if (split.length > 1) {
 						String[] followersArray = split[1].split(",");
-						if (!Arrays.asList(followersArray).contains(user)) {
-							line = line + "," + user;
+						if (!Arrays.asList(followersArray).contains(user.toLowerCase())) {
+							line = line + "," + user.toLowerCase();
 							follow = true;
 						} else {
 							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
-						line = line + user;
+						line = line + user.toLowerCase();
 						follow = true;
 					}
 					fileContent_followers.set(i, line);
@@ -248,13 +248,13 @@ public class ServerActions {
 			// followers file
 			followersFile = removeFromFollowers(userToUnfollow);
 			if (!followersFile) {
-				System.out.println("Problem removing from followers file...");
+				throw new Exception("Problem removing from followers file...");
 			}
 
 			// following file
 			followingFile = removeFromFollowing(userToUnfollow);
 			if (!followingFile) {
-				System.out.println("Problem removing from following file...");
+				throw new Exception("Problem removing from following file...");
 			}
 
 		} catch (Exception e) {
@@ -274,13 +274,13 @@ public class ServerActions {
 			String line = fileContent.get(i);
 			String[] split = line.split(":");
 			String userUnfollow = split[0];
-			if (userUnfollow.equals(userToUnfollow)) {
+			if (userUnfollow.toLowerCase().equals(userToUnfollow.toLowerCase())) {
 				userUnfollowFound = true;
 				if (split.length > 1) {
 					String[] followersArray = split[1].split(",");
 					ArrayList<String> followersList = new ArrayList<>(Arrays.asList(followersArray));
 					for (int j = 0; j < followersList.size(); j++) {
-						if (followersList.get(j).equals(user)) {
+						if (followersList.get(j).equals(user.toLowerCase())) {
 							wasFollowing = true;
 							followersList.remove(j);
 							unfollow = true;
@@ -290,7 +290,7 @@ public class ServerActions {
 					if (!wasFollowing) {
 						throw new Exception("Não se encontrava a seguir esse utilizador.");
 					}
-					line = userToUnfollow + ":";
+					line = userToUnfollow.toLowerCase() + ":";
 					for (int j = 0; j < followersList.size(); j++) {
 						if (j == 0) {
 							line = line + followersList.get(j);
@@ -321,12 +321,12 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.equals(this.user)) {
+				if (myuser.toLowerCase().equals(this.user.toLowerCase())) {
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
 						ArrayList<String> followingList = new ArrayList<>(Arrays.asList(followingArray));
 						for (int j = 0; j < followingList.size(); j++) {
-							if (followingList.get(j).equals(userToUnfollow)) {
+							if (followingList.get(j).equals(userToUnfollow.toLowerCase())) {
 								userUnfollowFound = true;
 								followingList.remove(j);
 								unfollow = true;
@@ -337,7 +337,7 @@ public class ServerActions {
 							throw new Exception(
 									"Não foi possível deixar de seguir esse user pq não existe ou não o estava a seguir.");
 						}
-						line = myuser + ":";
+						line = myuser.toLowerCase() + ":";
 						for (int j = 0; j < followingList.size(); j++) {
 							if (j == 0) {
 								line = line + followingList.get(j);

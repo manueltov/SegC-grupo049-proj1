@@ -30,22 +30,22 @@ public class AuthenticationServer {
 	public boolean registerUser(String user) throws IOException {
 		File file = openFile(utilizadores);
 		BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
-		writer.write(user + "\n");
+		writer.write(user.toLowerCase() + "\n");
 		writer.close();
 
 		// followers file
 		file = openFile(followers);
 		writer = new BufferedWriter(new FileWriter(file, true));
-		writer.write(user + ":\n");
+		writer.write(user.toLowerCase() + ":\n");
 		writer.close();
 
 		// following file
 		file = openFile(following);
 		writer = new BufferedWriter(new FileWriter(file, true));
-		writer.write(user + ":\n");
+		writer.write(user.toLowerCase() + ":\n");
 		writer.close();
 
-		System.out.println("User adicionado " + user);
+		System.out.println("User adicionado " + user.toLowerCase());
 		return true;
 	}
 
@@ -56,8 +56,8 @@ public class AuthenticationServer {
 				//String line = reader.nextLine();
 				//String[] split = line.split(":");
 				//String username = split[0];
-				if (username.equals(reader.nextLine())) {
-					System.out.println("User " + username + " existe");
+				if (username.toLowerCase().equals(reader.nextLine())) {
+					System.out.println("User " + username.toLowerCase() + " existe");
 					return true;
 				}
 			}
