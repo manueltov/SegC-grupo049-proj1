@@ -358,16 +358,19 @@ public class ServerActions {
 		return unfollow;
 	}
 
-	public String followers() throws IOException {
+	public String viewfollowers() throws IOException {
 		String followersString = "Nao tem seguidores\n";
-		ArrayList<String> fileContent = new ArrayList<>(
-				Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
+		ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
 		for (int i = 0; i < fileContent.size(); i++) {
 			String line = fileContent.get(i);
 			String[] split = line.split(":");
 			String username = split[0];
-			if (username.equals(user) && split.length > 1) {
-				followersString = split[1];
+			if (username.toLowerCase().equals(user.toLowerCase())) {
+				if (split.length > 1) {
+					followersString = split[1];
+				} else {
+					System.err.println("Não tem seguidores");
+				}
 			}
 		}
 		return followersString;

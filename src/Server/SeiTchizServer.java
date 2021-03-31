@@ -144,7 +144,7 @@ public class SeiTchizServer {
 					if (split.length == 1) {
 						String command = split[0];
 						if (command.equals("v") || command.equals("viewfollowers")) {
-							mesSent = "Seguidores:\n" + acc.followers();
+							mesSent = "Seguidores:\n" + acc.viewfollowers();
 						}
 						if (command.equals("g") || command.equals("ginfo")) {
 							mesSent = "Os meus grupos:\n" + acc.listGroups();
