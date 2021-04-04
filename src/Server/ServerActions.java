@@ -433,9 +433,9 @@ public class ServerActions {
 
 	private String photoAdd(byte[] photoFile, String folder) {
 		String generatedPhotoID = generatePhotoID();
-		String filename = folder + "/" + generatedPhotoID + "";
-//		File file = new File(filename);
-		File file = openFile(filename);
+		String filename = folder + "/" + generatedPhotoID + ".png";
+		File file = new File(filename);
+//		File file = openFile(filename);
 
 		byte[] content = (byte[]) photoFile;
 		try {
