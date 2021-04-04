@@ -173,8 +173,16 @@ public class SeiTchizServer {
 								mesSent = "Nao foi possivel deixar de seguir: '" + userID + "'";
 							}
 						} else if (command.equals("p") || command.equals("post")) {
-							String photo = split[1];
-							String photoID = acc.post(photo);
+							String photoID = null;
+							
+							//ask for <photo>
+							outStream.writeObject("<photo>");
+	                        outStream.flush();
+	                        
+	                        //receive photo
+	                        byte[] secondMesReceived = (byte[]) inStream.readObject();
+                        	photoID = acc.post(secondMesReceived);
+                        	
 							if (photoID != null) {
 								mesSent = "Fotografia com ID: " + photoID + "\n publicada com sucesso.";
 							} else {

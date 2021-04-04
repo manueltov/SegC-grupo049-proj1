@@ -404,7 +404,7 @@ public class ServerActions {
 		return followingString;
 	}
 
-	public String post(String photo) {
+	public String post(byte[] secondMesReceived) {
 		String photoID = null;
 
 		String folderName = IMAGES_FOLDER + "/img_" + user;
@@ -419,11 +419,11 @@ public class ServerActions {
 		}
 
 		// add photo to that folder
-		photoID = photoAdd(photo, folderName);
-
+		photoID = photoAdd(secondMesReceived, folderName);
+		
 		// verify if it worked
 		if (photoID != null) {
-			System.out.println(photo + " successfully added!");
+			System.out.println(photoID + " successfully added!");
 			return photoID;
 		} else {
 			System.out.println("Something went wrong... Photo wasn't added.");
@@ -431,18 +431,21 @@ public class ServerActions {
 		}
 	}
 
-	private String photoAdd(String photoFileName, String folder) {
-		String generatedPhotoID = null;
-		String filename = folder + "/" + photoFileName + ".txt";
+	private String photoAdd(byte[] photoFile, String folder) {
+		String generatedPhotoID = generatePhotoID();
+		String filename = folder + "/" + generatedPhotoID + "";
 //		File file = new File(filename);
 		File file = openFile(filename);
 
-		if (file.exists()) {
-			generatedPhotoID = generatePhotoID();
+		byte[] content = (byte[]) photoFile;
+		try {
+			Files.write(file.toPath(), content);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 
 		if (generatedPhotoID != null) {
-			if (addToLedger(user, generatedPhotoID, photoFileName)) {
+			if (addToLedger(user, generatedPhotoID, generatedPhotoID)) {
 				return generatedPhotoID;
 			}
 		}
