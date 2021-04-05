@@ -160,7 +160,7 @@ public class SeiTchiz {
                             outStream.flush();
 						}
                     	str2= inStream.readObject().toString();
-                        System.out.println(str2);
+                    	System.out.println(str2);	
     				} else {
     					outStream.writeObject(str);
                         outStream.flush();

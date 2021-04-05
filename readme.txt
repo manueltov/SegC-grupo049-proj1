@@ -22,8 +22,7 @@ java -cp bin -Djava.security.manager -Djava.security.policy=server.policy -jar s
 Para correr o cliente deve colocar-se na pasta SegC-grupo49-proj1-2 e correr o seguinte comando:
 
 (Entrando com o Rafael como exemplo)
-java -cp bin -Djava.security.manager -Djava.security.policy=client.policy -jar client.jar 
-127.0.0.1:45678  trustore.client RafaelStore 456789 Rafael
+java -cp bin -Djava.security.manager -Djava.security.policy=client.policy -jar client.jar 127.0.0.1:45678  trustore.client RafaelStore 456789 Rafael
 
 ***------------------------------------------------------------------------------*
 COM POLITICAS e sem .jar
@@ -76,3 +75,6 @@ Para desconectar o Client, basta escrever "stop"
 
 ***O metodo msg não foi implementado nesta fase, contendo as funcionalidades(implementadas) da fase anterior.
 
+***No metodo post, é enviado um ficheiro/foto para o servidor, a foto a enviar deve ser colocada/criada, na pasta postDirectory (criada depois de se inicializar a conecção).Ao chamar o metodo post, tem que se chamar a foto/ inserir a foto com a sua extenção (por exemplo, se criar a foto "teste.png", tem que chamar post com teste.png ( p teste.png)).
+
+***No trabalho enviado, vai a pasta postDirectory já criada, contendo assim uma foto como teste(teste.png), caso queira testar desta forma. Caso queria apagar o postDirectory e esta foto, terá na mesma de depois de criada a coneção entre o cliente e o servidor, ele cria então a pasta postDirectory mas terá então que criar uma foto como teste, como mencionado no ponto anterior.
