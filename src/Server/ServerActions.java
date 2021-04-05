@@ -618,31 +618,42 @@ public class ServerActions {
 				System.out.println(photosToPrint);
 				return photosToPrint;
 			}
-
+			
+			int fotosDisponiveis = 0;
 			int ultimaLinha = fileContent.size() - 1;
 			while (photoCounter != 0) {
 				String line = fileContent.get(ultimaLinha);
 				String[] split = line.split(":");
 				String userFromList = split[0];
+				if (userFromList.equals("current_ID")) {
+					break;
+				}
 				String photoID = split[1];
 				String photoName = split[2];
 				String photoLikes = split[3];
 				if (followingStringList.contains(userFromList.toLowerCase())) {
+					fotosDisponiveis++;
 					String text = "A foto com ID " + photoID + ", nome: " + photoName + ", tem " + photoLikes
 							+ " likes.\n";
 					sb.append(text);
 					photoCounter--;
 				}
-				if (userFromList.equals("current_ID")) {
-					break;
-				}
 				ultimaLinha--;
+			}
+			if (fotosDisponiveis < Integer.parseInt(nPhotos)) {
+				photosToPrint = "Só existem " + fotosDisponiveis + " fotos para apresentar.";
+				System.out.println(photosToPrint);
 			}
 		} catch (IOException e) {
 			System.out.println("Error, updating the ledger.");
 			e.printStackTrace();
 		}
-		photosToPrint = sb.toString();
+		if (photosToPrint != null) {
+			photosToPrint += "\n";
+			photosToPrint += sb.toString();
+		} else {
+			photosToPrint = sb.toString();
+		}
 		return photosToPrint;
 	}
 
