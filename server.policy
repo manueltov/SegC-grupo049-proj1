@@ -2,5 +2,10 @@ grant  {
 	permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
 	permission java.net.SocketPermission "localhost:45678", "connect, listen,resolve";
 	permission java.net.SocketPermission "*:2024-", "accept";
-	permission java.security.AllPermission;
+	
+	
+    //permission java.util.PropertyPermission "javax.net.ssl.keyStore", "write";
+    //permission java.util.PropertyPermission "javax.net.ssl.keyStorePassword", "write";
+    
+    permission java.security.AllPermission; 
 	};

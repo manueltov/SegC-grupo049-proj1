@@ -6,17 +6,35 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 
 import SeiTchizKeys.Keys;
+import SeiTchizKeys.KeysClient;
 import SeiTchizKeys.KeysServer;
-
+/**
+ * 
+ * Esta classe é responsável pela execução das funcões para cumprir os comandos enviados pelo utilizador do "SeiTchizServer"
+ *
+ */
 public class ServerActions {
 	private String user = "";
 	private ObjectInputStream in = null;
@@ -26,15 +44,28 @@ public class ServerActions {
 	private static final String following = "following" + txt;
 	private static final String ledger = "ledger" + txt;
 	private static final String GROUPS_FOLDER = "./src/Server/Groups";
+	private static final String GROUPS_FOLDERKEYS = "./src/Server/GroupsKeys";
 	// private static final String USERS = "users.txt"; //not used
 	private static final String IMAGES_FOLDER = "./src/Server/Images";
-
+	
+	/**
+	* 
+	* Cria a stream de dados do server
+	* 
+	* @param in - stream de dados que entra
+	* @param out -stream de dados que saem
+	*/
 	public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
 		this.in = in;
 		this.out = out;
 		createImagesFolder();
 	}
-
+	/**
+	* 
+	* verifica a autenticacao do utilizador
+	* 
+	* @return boolean - true - se a auntenticação tenha sucesso / - false - caso contrario
+	*/
 	public boolean comecaAccoes() {
 		try {
 			if (!autenticacao()) {
@@ -47,66 +78,70 @@ public class ServerActions {
 		}
 		return false;
 	}
-
 	private KeysServer keyServer = null;
-
+	/**
+	* 
+	* carrega as chaves usadas no servidor vindas do servidor de chaves
+	* 
+	* @param keyServer - servidor de chaves
+	*/
 	public void loadKeys(KeysServer keyServer) {
-		this.keyServer = keyServer;
+		this.keyServer=keyServer;
 	}
-
 	private boolean autenticacao() throws ClassNotFoundException, IOException {
-
+		
 		boolean existsUser;
-		// user recebido
+		//user recebido
 		user = (String) in.readObject();
-
+		
 		// ver se utilizador já existe
 		existsUser = AuthenticationServer.getInstance().existsUser(user);
-
+		
+	
 		long code = (new Random()).nextLong();
-
+		
 		System.out.println("Código enviado ao servidor");
-
-		// envia o long
+		
+		//envia o long
 		out.flush();
 		out.writeObject(code);
-
-		// ve se ja existe
+		
+		//ve se ja existe
 		out.flush();
 		out.writeObject(existsUser);
-
-		// nonce cifrado pelo user
+		
+		//nonce cifrado pelo user
 		byte[] codeByte = (byte[]) in.readObject();
-
-		// certificado do user
+		
+		//certificado do user
 		Certificate certificate = null;
-
+		
 		// se nao existir, cria um novo guardando o seu .cer
 		if (!existsUser) {
-
-			// guarda o certificado do client no servidor
+		
+			//guarda o certificado do client no servidor
 			certificate = (Certificate) in.readObject();
-			KeysServer.saveUserCertificate(user, certificate);
-
+			KeysServer.saveUserCertificate(user,certificate);
+	
 		}
-
+	
 		certificate = KeysServer.getUserCertificate(user);
-
-		// chve publica cert
-		byte[] decodeByte = Keys.decipher(codeByte, certificate.getPublicKey());
-
+		
+		//chve publica cert
+		byte[] decodeByte = Keys.decipher(codeByte,certificate.getPublicKey());
+		
 		long codeUser = ByteBuffer.wrap(decodeByte).getLong();
-
+		
 		boolean validation = code == codeUser;
-
-		System.out.println("Validação do Cliente: " + validation);
+		
+		System.out.println("Validação do Cliente: "+ validation);
 		out.flush();
 		out.writeObject(validation);
-
-		if (!existsUser && validation) {
+		
+		if ( !existsUser && validation) {
 			AuthenticationServer.getInstance().registerUser(user);
 		}
-
+		
 		return existsUser;
 	}
 
@@ -121,9 +156,15 @@ public class ServerActions {
 			System.err.println("Erro: pasta de fotografias nao criada" + e.getMessage());
 		}
 	}
-
+	/**
+	* 
+	* função para seguir um utilizador
+	* 
+	* @param userToFollow - identificador do utilizador que se quer seguir
+	* @return boolean - true - se a operação foi executada com sucesso / - false - caso contrário
+	* @throws IOException
+	*/
 	public boolean followUser(String userToFollow) throws IOException {
-
 		if (userToFollow.equals(this.user)) {
 			System.err.println("Não é possível seguir-se a si mesmo.");
 			return false;
@@ -232,9 +273,15 @@ public class ServerActions {
 		}
 		return follow;
 	}
-
+	/**
+	* 
+	* função para deixar de seguir um utilizador
+	* 
+	* @param userToUnfollow - identificador do utilizador que se quer seguir
+	* @return boolean - true - se a operação foi executada com sucesso / - false - caso contrário
+	* @throws IOException
+	*/
 	public boolean unfollowUser(String userToUnfollow) throws IOException {
-
 		if (userToUnfollow.equals(this.user)) {
 			System.err.println("Não é permitido deixar de seguir o próprio.");
 			return false;
@@ -309,8 +356,8 @@ public class ServerActions {
 		Files.write(Paths.get(followers), fileContent, StandardCharsets.UTF_8);
 		return unfollow;
 	}
-
-	private boolean removeFromFollowing(String userToUnfollow) throws Exception {
+	
+	private boolean removeFromFollowing(String userToUnfollow) throws Exception{
 		boolean unfollow = false;
 		boolean userUnfollowFound = false;
 
@@ -357,8 +404,14 @@ public class ServerActions {
 		}
 		return unfollow;
 	}
-
-	public String viewFollowers(){
+	/**
+	 * 
+	 * função para mostrar os seguidores de um utilizador 
+	 * 
+	 * @return followersString - String com todos os nomes de todos os seguidores
+	 * @throws IOException
+	*/
+	public String viewFollowers() throws IOException {
 		String followersString = null;
 		try {
 			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
@@ -380,8 +433,14 @@ public class ServerActions {
 		}
 		return followersString;
 	}
-
-	public String viewFollowing(){
+	/**
+	 * 
+	 * função para mostrar todos as pessoas seguidas pelo utilizador 
+	 * 
+	 * @return followingString - String com todos os nomes de todos os seguidos
+	 * @throws IOException
+	*/
+	public String viewFollowing() throws IOException {
 		String followingString = null;
 		try {
 			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
@@ -420,10 +479,10 @@ public class ServerActions {
 
 		// add photo to that folder
 		photoID = photoAdd(secondMesReceived, folderName);
-		
+
 		// verify if it worked
 		if (photoID != null) {
-			System.out.println(photoID + " successfully added!");
+			System.out.println(secondMesReceived + " successfully added!");
 			return photoID;
 		} else {
 			System.out.println("Something went wrong... Photo wasn't added.");
@@ -527,7 +586,7 @@ public class ServerActions {
 		return Integer.parseInt(current_ID);
 	}
 
-	public String wall(String nPhotos) {
+	public String wall(String nPhotos) throws IOException {
 		int numeroPhotos = Integer.parseInt(nPhotos);
 		if (numeroPhotos < 1) {
 			System.err.println("Erro: user tem de pedir uma ou mais fotos.");
@@ -559,42 +618,53 @@ public class ServerActions {
 				System.out.println(photosToPrint);
 				return photosToPrint;
 			}
-
+			
+			int fotosDisponiveis = 0;
 			int ultimaLinha = fileContent.size() - 1;
 			while (photoCounter != 0) {
 				String line = fileContent.get(ultimaLinha);
 				String[] split = line.split(":");
 				String userFromList = split[0];
+				if (userFromList.equals("current_ID")) {
+					break;
+				}
 				String photoID = split[1];
 				String photoName = split[2];
 				String photoLikes = split[3];
 				if (followingStringList.contains(userFromList.toLowerCase())) {
+					fotosDisponiveis++;
 					String text = "A foto com ID " + photoID + ", nome: " + photoName + ", tem " + photoLikes
 							+ " likes.\n";
 					sb.append(text);
 					photoCounter--;
 				}
-				if (userFromList.equals("current_ID")) {
-					break;
-				}
 				ultimaLinha--;
+			}
+			if (fotosDisponiveis < Integer.parseInt(nPhotos)) {
+				photosToPrint = "Só existem " + fotosDisponiveis + " fotos para apresentar.";
+				System.out.println(photosToPrint);
 			}
 		} catch (IOException e) {
 			System.out.println("Error, updating the ledger.");
 			e.printStackTrace();
 		}
-		photosToPrint = sb.toString();
+		if (photosToPrint != null) {
+			photosToPrint += "\n";
+			photosToPrint += sb.toString();
+		} else {
+			photosToPrint = sb.toString();
+		}
 		return photosToPrint;
 	}
 
-	public boolean like(String photoID) throws Exception {
+	public boolean like(String photoID) {
 		boolean liked = false;
 
 		// Get the photo info
 		String[] photoInfo = getPhotoInfo(photoID);
 		if (photoInfo == null) {
 			System.out.println("Error, getting that photoID...");
-			throw new Exception("Error, getting that photoID...");
+			return liked;
 		}
 
 		// increment likes of that photo
@@ -607,6 +677,7 @@ public class ServerActions {
 		if (updatePhotoInfo(photoID, photoInfo)) {
 			liked = true;
 		}
+
 		return liked;
 	}
 
@@ -670,7 +741,13 @@ public class ServerActions {
 
 		return photoInfoUpdated;
 	}
-
+	/**
+	 * 
+	 * função para alterar  e criar um grupo 
+	 *
+	 * @param filename - File - ficheiro onde estão presentes os grupos
+	 * @param group - Group - grupo de utilizadores
+	 */
 	public void writeGroup(File filename, Group group) {
 		try {
 			FileOutputStream f = new FileOutputStream(filename);
@@ -682,7 +759,33 @@ public class ServerActions {
 			e.printStackTrace();
 		}
 	}
-
+	/**
+	* 
+	* função para criar chave do grupo
+	*
+	* @param filename - File - ficheiro onde estão presentes os grupos
+	* @param key - String - chave do grupo
+	* @param groupID - String - identificador do grupo
+	*/
+	public void writeGroupKey(File filename, String key, String groupID) {
+		File theDir=new File("./src/Server/GroupsKeys/"+groupID);
+		if (!theDir.exists()){
+		    theDir.mkdirs();
+		}
+		try {
+			FileWriter fw = new FileWriter(filename,true);
+			fw.write("0__"+key+"\n");
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	/**
+	* 
+	* função que devolve todos os grupos
+	*
+	* @return groups - ArrayList - lista de grupos
+	*/
 	public ArrayList<Group> readGroups() {
 		ArrayList<Group> groups = new ArrayList<>();
 		File folder = new File(GROUPS_FOLDER);
@@ -704,7 +807,11 @@ public class ServerActions {
 		}
 		return groups;
 	}
-
+	/**
+	* 
+	* função que imprime as informações sobre todos os grupos
+	*
+	*/
 	public void printGroups() {
 		ArrayList<Group> groups = readGroups();
 		for (Group g : groups) {
@@ -731,7 +838,13 @@ public class ServerActions {
 			System.out.println("=====================================");
 		}
 	}
-
+	/**
+	* 
+	* função que mostra as  mensagens enviadas para o grupo groupID e que o cliente ainda não tenha recebido
+	*
+	* @param groupID - String - identificador do grupo
+	* @return msgStr - String - conjunto de mensagens que o utilizador ainda não leu / Nao pertence ao grupo ou o grupo nao existe / o existem mensagens novas
+	*/
 	public String collect(String groupID) {
 		String msgStr = "Nao pertence ao grupo ou o grupo nao existe\n";
 		ArrayList<Group> groups = readGroups();
@@ -756,7 +869,13 @@ public class ServerActions {
 		}
 		return msgStr;
 	}
-
+	/**
+	 * 
+	 * função que imprime histórico das mensagens do grupo indicado que o cliente já leu anteriormente
+	 *
+	 * @param groupID - String - identificador do grupo
+	 * @return msgStr - String - conjunto de mensagens que o utilizador ainda não leu / Nao pertence ao grupo ou o grupo nao existe / o existem mensagens novas
+	*/
 	public String history(String groupID) {
 		String msgStr = "Nao pertence ao grupo ou o grupo nao existe\n";
 		ArrayList<Group> groups = readGroups();
@@ -777,7 +896,12 @@ public class ServerActions {
 		}
 		return msgStr;
 	}
-
+	/**
+	  * 
+	  * função que imprime a lista de grupos, mostando o dono e os membros
+	  *
+	  * @return listStr - String - lista de grupos
+	*/	
 	public String listGroups() {
 		String listStr = "";
 		ArrayList<Group> groups = readGroups();
@@ -790,7 +914,12 @@ public class ServerActions {
 		}
 		return listStr;
 	}
-
+	/**
+	  * 
+	  * função que imprime as informações de um grupo, mostando o dono e os membros
+	  *
+	  * @return listStr - String - informações e detalhes do grupo 
+	*/
 	public String listGroups(String groupID) {
 		String listStr = "";
 		ArrayList<Group> groups = readGroups();
@@ -811,30 +940,64 @@ public class ServerActions {
 		}
 		return listStr;
 	}
-
-	public boolean newGroup(String groupID) {
+	private String keyE;
+	public boolean newGroup(String groupID) throws IOException  {
+	
+		byte[] key = KeysClient.getSimetricKey();
+		try {
+			String keyEncrypted = new String(Keys.cipher(key,KeysClient.getPublicKey(user)));
+			keyE= keyEncrypted;
+		} catch (CertificateException e1) {
+			e1.printStackTrace();
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+		}
+		
 		boolean created = false;
 		Path path = Paths.get("Groups");
+		Path pathk = Paths.get("GroupsKeys");
 		try {
 			Files.createDirectories(path);
+			Files.createDirectories(pathk);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		String filename = GROUPS_FOLDER + "/" + groupID + ".dat";
+		String keysAll = GROUPS_FOLDERKEYS+ File.separator+ groupID+File.separator+groupID+"keys.txt";
+		
 		File file = new File(filename);
+		File fk = new File(keysAll);
 		if (!file.exists()) {
-			Group group = new Group(groupID, user);
+			//ficheiro
+			Group group = new Group(groupID, user,keyE);
 			writeGroup(file, group);
+			
 			created = true;
 		}
+		if(!fk.exists()) {
+			writeGroupKey(fk, keyE,groupID);
+		}
+		
+		
 		return created;
 	}
-
+	/**
+	* 
+	* função que adiciona um utilizador a um grupo
+	* 
+	* @param userID - String - identificador do utilizador a adicionar
+	* @param groupID - String - identificador do grupo
+	* @return boolean - true - caso o utilizador tenha sido adicionado ao grupo / - false - caso contrário 
+	*/
 	public boolean addUser(String userID, String groupID) {
+		
 		ArrayList<Group> groups = readGroups();
 		boolean existsGroup = false;
 		boolean added = false;
-		boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		
+		//boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		boolean existsUser=true;
+	
 		int i = 0;
 		for (Group g : groups) {
 			if (g.getId().equals(groupID)) {
@@ -844,7 +1007,9 @@ public class ServerActions {
 			i++;
 		}
 		if (!existsUser) {
+			
 			return false;
+			
 		}
 		if (!existsGroup) {
 			return false;
@@ -853,21 +1018,128 @@ public class ServerActions {
 		if (!group.getOwner().equals(user)) {
 			return false;
 		}
+		
 		if (!group.userInGroup(userID)) {
 			group.getMembers().add(userID);
+			
 			String filename = GROUPS_FOLDER + "/" + group.getId() + ".dat";
 			writeGroup(new File(filename), group);
 			added = true;
+			updateGroupKey(groupID,group.getMembers(),group.getOwner());
+			
 		}
 		readGroups();
 		return added;
 	}
 
-	public boolean removeUser(String userID, String groupID) {
+	private void updateGroupKey(String groupID, ArrayList<String> arrayList, String owner) {
+		byte[] keyS = KeysClient.getSimetricKey();
+		
+		System.out.println(arrayList+"***************");
+		int keyCode = getNumberKeys(groupID,owner);
+		System.out.println(keyCode);
+		
+		try {
+			for(String user :arrayList) {
+				String keyEncrypted = new String(KeysClient.cipher(keyS,KeysClient.getPublicKey(user)));
+				addUserKey(groupID,user,keyCode+"",keyEncrypted);
+			}
+		}catch(IOException | CertificateException e) {
+			System.out.println("Erro ao atualizar a key do groups");
+		}
+	}
+
+	private void addUserKey(String groupID, String userID,String id , String key) throws IOException {
+		File theDir=new File("./src/Server/GroupsKeys/"+groupID+File.separator+"Users");
+		if (!theDir.exists()){
+		    theDir.mkdirs();
+		}
+		//novo com path pa chave do user
+		String p =GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+userID+"keys.txt";
+		String members=GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+"Members.txt";
+		
+		File m = new File(members);
+		File n = new File(p);
+		
+		String all = id+"__"+key;	
+		writeGroupUsersKeys(p,all);
+		String maux="<"+userID+","+p+">";
+		writeToMembers(members,maux);
+		DuplicatesFromFile(members);
+		
+	}
+	private void DuplicatesFromFile(String members) throws IOException {
+		BufferedReader reader = new BufferedReader(new FileReader(members));
+	    Set<String> lines = new HashSet<String>(10000); 
+	    String line;
+	    while ((line = reader.readLine()) != null) {
+	        lines.add(line);
+	    }
+	    reader.close();
+	    BufferedWriter writer = new BufferedWriter(new FileWriter(members));
+	    for (String unique : lines) {
+	        writer.write(unique);
+	        writer.newLine();
+	    }
+	    writer.close();
+	}
+
+	private void writeToMembers(String members, String maux) {
+		File f = openFile(members);
+		try {
+			FileWriter fw = new FileWriter(members,true);
+			fw.write(maux+"\n");
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+	private void writeGroupUsersKeys(String file, String all) {
+		File f = openFile(file);
+		try {
+			FileWriter fw = new FileWriter(file,true);
+			fw.write(all+"\n");
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+	private int getNumberKeys(String groupID, String owner) {
+		int count=0;
+		try {
+		      File file = new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+groupID+"keys.txt");
+		      Scanner sc = new Scanner(file);
+
+		      while(sc.hasNextLine()) {
+		        sc.nextLine();
+		        count++;
+		      }
+		      sc.close();
+		    } catch (Exception e) {
+		      e.getStackTrace();
+		    }
+		//se nao da o dobro
+		return count/2;
+	}
+	/**
+	 * 
+	 * função que remove um utilizador de um grupo
+	 * 
+	 * @param userID - String - identificador do utilizador a remover
+	 * @param groupID - String - identificador do grupo
+	 * @return boolean - true - caso o utilizador tenha sido removido do grupo / - false - caso contrário 
+	 * @throws IOException
+	*/
+	public boolean removeUser(String userID, String groupID) throws IOException  {
 		ArrayList<Group> groups = readGroups();
 		boolean existsGroup = false;
 		boolean deleted = false;
-		boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		//boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		boolean existsUser=true;
 		int i = 0;
 		for (Group g : groups) {
 			if (g.getId().equals(groupID)) {
@@ -892,11 +1164,77 @@ public class ServerActions {
 			String filename = GROUPS_FOLDER + "/" + group.getId() + ".dat";
 			writeGroup(new File(filename), group);
 			deleted = true;
+			deleteUserGroup(groupID,userID);
 		}
 		readGroups();
 		return deleted;
 	}
 
+	private void deleteUserGroup(String groupID, String userID) throws IOException  {
+		File file = new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+userID+"keys.txt");
+		removeAUX(file,userID);
+		File m= new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+"Members.txt");
+		removeAUXMEMBERS(m,userID,groupID);
+		
+		
+	}
+
+	private void removeAUXMEMBERS(File file, String userID,String groupID) throws IOException  {
+		String r ="<"+userID+","+"./src/Server/GroupsKeys/"+groupID+"/Users/"+userID+"keys.txt>";
+		File tempFile = new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+"MembersT.txt");
+		BufferedReader reader = new BufferedReader(new FileReader(file));
+	    BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
+
+	    String currentLine;
+	   
+	    while ((currentLine = reader.readLine()) != null) {
+	    	String trimmedLine = currentLine.trim();
+	        if(trimmedLine.equals(r)) continue;
+	        writer.write(currentLine + System.getProperty("line.separator"));
+	    }
+	    writer.close();
+	    reader.close();
+	    tempFile.renameTo(file);
+	}
+
+	private void removeAUX(File file, String userID) {
+		try(Scanner scanner = new Scanner(file)) {
+            try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
+                String line;
+                while (scanner.hasNextLine()) {
+                    line = scanner.nextLine();
+                    if (!line.trim().equals(userID)) {
+
+                        pw.println(line);
+                        pw.flush();
+                    }
+                }
+               
+                if (!file.delete()) {
+                    System.out.println("Could not delete file");
+                    return;
+                }
+
+                if (!file.renameTo(file))
+                    System.out.println("Could not rename file");
+            }
+        }
+      catch (IOException e)
+      {
+          System.out.println("IO Exception Occurred");
+      }
+
+		
+	}
+	/**
+	* 
+	* função que envia uma mensagem para um grupo 
+	* 
+	* @param groupID - String - identificador do grupo
+	* @param messageArray -String[] - conjunto
+	* @return boolean - true - caso o utilizador tenha sido removido do grupo / - false - caso contrário 
+	* @throws IOException
+	*/
 	public boolean sendMessage(String groupID, String[] messageArray) {
 		boolean sent = false;
 		ArrayList<Group> groups = readGroups();
@@ -936,5 +1274,6 @@ public class ServerActions {
 		}
 		return file;
 	}
-
+	
+		 
 }

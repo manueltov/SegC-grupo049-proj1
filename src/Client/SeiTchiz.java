@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.cert.Certificate;
-
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -20,7 +19,6 @@ public class SeiTchiz {
     private Socket socketClient = null;
     private static int PORT = 45678;
     private KeysClient keysClient = null;
-    //src\Client\postDirectory
     private static String postDirectory = "src"+File.separator+"Client"+File.separator+"postDirectory";
     
     public static void main(String[] args) {
@@ -57,10 +55,9 @@ public class SeiTchiz {
         System.out.println("KeyStore válida do Cliente");
         client.startClient(ip, port, username);
         
+        
        
     }
-    
-    
     private static void createPostDirectory() {
 		try {
 			Path path = Paths.get(postDirectory);
@@ -70,9 +67,8 @@ public class SeiTchiz {
 			System.err.println("Erro: pasta de fotografias nao criada" + e.getMessage());
 		}
 	}
-
-
-	private void loadCertificate(String username, String truststore, String keyStore, String keyStorePass) {
+    
+    private void loadCertificate(String username, String truststore, String keyStore, String keyStorePass) {
       
     	System.setProperty("javax.net.ssl.trustStore",truststore);    
         System.setProperty("javax.net.ssl.keyStore",keyStore);
@@ -110,7 +106,9 @@ public class SeiTchiz {
             
             outStream.writeObject(longCifrado);
             outStream.flush();
-
+           
+            
+            
             if(response.equals("false")) {
             	Certificate certificate = keysClient.getCertificate();
             	outStream.flush();
@@ -118,9 +116,10 @@ public class SeiTchiz {
             }
 
             boolean confirmation =  (boolean) inStream.readObject();
+        	
 
             if (confirmation==true) {
-            	
+                
                 System.out.println("Conectado!");
                 System.out.println("*********************************");
                 System.out.println("======= MENU DE COMANDOS ========");
@@ -140,8 +139,9 @@ public class SeiTchiz {
                 System.out.println("===================================");
                 String str="";
                 String str2="";
+             
                 while(!str.equals("stop")){
-                    str=br.readLine();
+                	str=br.readLine();
                     String[] split = str.split(" ");
                     if (split[0].equals("p") || split[0].equals("post")) {
                     	File f = new File(postDirectory + File.separator + split[1]);
@@ -159,6 +159,8 @@ public class SeiTchiz {
                             outStream.writeObject(content);
                             outStream.flush();
 						}
+                    	str2= inStream.readObject().toString();
+                        System.out.println(str2);
     				} else {
     					outStream.writeObject(str);
                         outStream.flush();
