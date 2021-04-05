@@ -7,12 +7,14 @@ public class Group implements Serializable {
     private static final long serialVersionUID = 1L;
     private String id;
     private String owner;
+    private String keyG;
     private ArrayList<String> members;
     private ArrayList<Message> inbox;
 
-    public Group(String groupID, String clientID) {
+    public Group(String groupID, String clientID, String keyE) {
         this.id = groupID;
         this.owner = clientID;
+        this.setKeyG(keyE);
         this.members = new ArrayList<>();
         this.inbox = new ArrayList<>();
     }
@@ -84,4 +86,12 @@ public class Group implements Serializable {
         }
         this.inbox.add(msg);
     }
+
+	public String getKeyG() {
+		return keyG;
+	}
+
+	public void setKeyG(String keyG) {
+		this.keyG = keyG;
+	}
 }

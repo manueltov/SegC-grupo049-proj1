@@ -6,15 +6,29 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 
 import SeiTchizKeys.Keys;
+import SeiTchizKeys.KeysClient;
 import SeiTchizKeys.KeysServer;
 
 public class ServerActions {
@@ -26,9 +40,10 @@ public class ServerActions {
 	private static final String following = "following" + txt;
 	private static final String ledger = "ledger" + txt;
 	private static final String GROUPS_FOLDER = "./src/Server/Groups";
+	private static final String GROUPS_FOLDERKEYS = "./src/Server/GroupsKeys";
 	// private static final String USERS = "users.txt"; //not used
 	private static final String IMAGES_FOLDER = "./src/Server/Images";
-
+	
 	public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
 		this.in = in;
 		this.out = out;
@@ -47,66 +62,64 @@ public class ServerActions {
 		}
 		return false;
 	}
-
 	private KeysServer keyServer = null;
-
 	public void loadKeys(KeysServer keyServer) {
-		this.keyServer = keyServer;
+		this.keyServer=keyServer;
 	}
-
 	private boolean autenticacao() throws ClassNotFoundException, IOException {
-
+		
 		boolean existsUser;
-		// user recebido
+		//user recebido
 		user = (String) in.readObject();
-
+		
 		// ver se utilizador já existe
 		existsUser = AuthenticationServer.getInstance().existsUser(user);
-
+		
+	
 		long code = (new Random()).nextLong();
-
+		
 		System.out.println("Código enviado ao servidor");
-
-		// envia o long
+		
+		//envia o long
 		out.flush();
 		out.writeObject(code);
-
-		// ve se ja existe
+		
+		//ve se ja existe
 		out.flush();
 		out.writeObject(existsUser);
-
-		// nonce cifrado pelo user
+		
+		//nonce cifrado pelo user
 		byte[] codeByte = (byte[]) in.readObject();
-
-		// certificado do user
+		
+		//certificado do user
 		Certificate certificate = null;
-
+		
 		// se nao existir, cria um novo guardando o seu .cer
 		if (!existsUser) {
-
-			// guarda o certificado do client no servidor
+		
+			//guarda o certificado do client no servidor
 			certificate = (Certificate) in.readObject();
-			KeysServer.saveUserCertificate(user, certificate);
-
+			KeysServer.saveUserCertificate(user,certificate);
+	
 		}
-
+	
 		certificate = KeysServer.getUserCertificate(user);
-
-		// chve publica cert
-		byte[] decodeByte = Keys.decipher(codeByte, certificate.getPublicKey());
-
+		
+		//chve publica cert
+		byte[] decodeByte = Keys.decipher(codeByte,certificate.getPublicKey());
+		
 		long codeUser = ByteBuffer.wrap(decodeByte).getLong();
-
+		
 		boolean validation = code == codeUser;
-
-		System.out.println("Validação do Cliente: " + validation);
+		
+		System.out.println("Validação do Cliente: "+ validation);
 		out.flush();
 		out.writeObject(validation);
-
-		if (!existsUser && validation) {
+		
+		if ( !existsUser && validation) {
 			AuthenticationServer.getInstance().registerUser(user);
 		}
-
+		
 		return existsUser;
 	}
 
@@ -123,39 +136,26 @@ public class ServerActions {
 	}
 
 	public boolean followUser(String userToFollow) throws IOException {
-
-		if (userToFollow.equals(this.user)) {
-			System.err.println("Não é possível seguir-se a si mesmo.");
-			return false;
-		}
-
 		boolean followersFile = false;
 		boolean followingFile = false;
 
-		try {
+		// followers file
+		followersFile = addToFollowers(userToFollow);
+		if (!followersFile) {
+			System.out.println("Problem adding to followers file...");
+		}
 
-			// followers file
-			followersFile = addToFollowers(userToFollow);
-			if (!followersFile) {
-				System.err.println("Problem adding to followers file...");
-			}
-
-			// following file
-			followingFile = addToFollowing(userToFollow);
-			if (!followingFile) {
-				System.err.println("Problem adding to following file...");
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
+		// following file
+		followingFile = addToFollowing(userToFollow);
+		if (!followingFile) {
+			System.out.println("Problem adding to following file...");
 		}
 
 		return followersFile && followingFile;
 	}
 
-	private boolean addToFollowing(String userToFollow) throws Exception {
+	private boolean addToFollowing(String userToFollow) {
 		boolean follow = false;
-		boolean found = false;
 
 		List<String> fileContent_following;
 		try {
@@ -164,39 +164,31 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.toLowerCase().equals(this.user.toLowerCase())) {
-					found = true;
+				if (myuser.equals(this.user) && !userToFollow.equals(this.user)) {
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
-						if (!Arrays.asList(followingArray).contains(userToFollow.toLowerCase())) {
-							line = line + "," + userToFollow.toLowerCase();
+						if (!Arrays.asList(followingArray).contains(userToFollow)) {
+							line = line + "," + userToFollow;
 							follow = true;
-						} else {
-							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
-						line = line + userToFollow.toLowerCase();
+						line = line + userToFollow;
 						follow = true;
 					}
 					fileContent_following.set(i, line);
 					break;
 				}
 			}
-			if (!found) {
-				throw new Exception("Utilizador não foi encontrado");
-			}
 			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
 		} catch (IOException e) {
-			System.out.println("Not added to following.txt");
+			System.out.println("Problem adding to following.txt");
 			// e.printStackTrace();
 		}
 		return follow;
 	}
 
-	private boolean addToFollowers(String userToFollow) throws Exception {
+	private boolean addToFollowers(String userToFollow) {
 		boolean follow = false;
-		boolean found = false;
-
 		try {
 			List<String> fileContent_followers;
 			fileContent_followers = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
@@ -204,93 +196,67 @@ public class ServerActions {
 				String line = fileContent_followers.get(i);
 				String[] split = line.split(":");
 				String userFollow = split[0];
-				if (userFollow.toLowerCase().equals(userToFollow.toLowerCase())) {
-					found = true;
+				if (userFollow.equals(userToFollow) && !userToFollow.equals(user)) {
 					if (split.length > 1) {
 						String[] followersArray = split[1].split(",");
-						if (!Arrays.asList(followersArray).contains(user.toLowerCase())) {
-							line = line + "," + user.toLowerCase();
+						if (!Arrays.asList(followersArray).contains(user)) {
+							line = line + "," + user;
 							follow = true;
-						} else {
-							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
-						line = line + user.toLowerCase();
+						line = line + user;
 						follow = true;
 					}
 					fileContent_followers.set(i, line);
 					break;
 				}
 			}
-			if (!found) {
-				throw new Exception("Utilizador não foi encontrado");
-			}
 			Files.write(Paths.get(followers), fileContent_followers, StandardCharsets.UTF_8);
 		} catch (IOException e) {
-			System.out.println("Not added to followers.txt");
+			System.out.println("Problem adding to followers.txt");
 			// e.printStackTrace();
 		}
 		return follow;
 	}
 
 	public boolean unfollowUser(String userToUnfollow) throws IOException {
-
-		if (userToUnfollow.equals(this.user)) {
-			System.err.println("Não é permitido deixar de seguir o próprio.");
-			return false;
-		}
-
 		boolean followersFile = false;
 		boolean followingFile = false;
 
-		try {
+		// followers file
+		followersFile = removeFromFollowers(userToUnfollow);
+		if (!followersFile) {
+			System.out.println("Problem removing from followers file...");
+		}
 
-			// followers file
-			followersFile = removeFromFollowers(userToUnfollow);
-			if (!followersFile) {
-				throw new Exception("Problem removing from followers file...");
-			}
-
-			// following file
-			followingFile = removeFromFollowing(userToUnfollow);
-			if (!followingFile) {
-				throw new Exception("Problem removing from following file...");
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
+		// following file
+		followingFile = removeFromFollowing(userToUnfollow);
+		if (!followingFile) {
+			System.out.println("Problem removing from following file...");
 		}
 
 		return followersFile && followingFile;
 	}
 
-	private boolean removeFromFollowers(String userToUnfollow) throws Exception {
+	private boolean removeFromFollowers(String userToUnfollow) throws IOException {
 		boolean unfollow = false;
-		boolean wasFollowing = false;
-		boolean userUnfollowFound = false;
-
 		List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
 		for (int i = 0; i < fileContent.size(); i++) {
 			String line = fileContent.get(i);
 			String[] split = line.split(":");
 			String userUnfollow = split[0];
-			if (userUnfollow.toLowerCase().equals(userToUnfollow.toLowerCase())) {
-				userUnfollowFound = true;
+			if (userUnfollow.equals(userToUnfollow) && !userToUnfollow.equals(user)) {
 				if (split.length > 1) {
 					String[] followersArray = split[1].split(",");
 					ArrayList<String> followersList = new ArrayList<>(Arrays.asList(followersArray));
 					for (int j = 0; j < followersList.size(); j++) {
-						if (followersList.get(j).equals(user.toLowerCase())) {
-							wasFollowing = true;
+						if (followersList.get(j).equals(user)) {
 							followersList.remove(j);
 							unfollow = true;
 							break;
 						}
 					}
-					if (!wasFollowing) {
-						throw new Exception("Não se encontrava a seguir esse utilizador.");
-					}
-					line = userToUnfollow.toLowerCase() + ":";
+					line = userToUnfollow + ":";
 					for (int j = 0; j < followersList.size(); j++) {
 						if (j == 0) {
 							line = line + followersList.get(j);
@@ -303,17 +269,12 @@ public class ServerActions {
 				break;
 			}
 		}
-		if (!userUnfollowFound) {
-			throw new Exception("Não foi encontrado o user que pretende deixar de seguir.");
-		}
 		Files.write(Paths.get(followers), fileContent, StandardCharsets.UTF_8);
 		return unfollow;
 	}
-
-	private boolean removeFromFollowing(String userToUnfollow) throws Exception {
+	
+	private boolean removeFromFollowing(String userToUnfollow){
 		boolean unfollow = false;
-		boolean userUnfollowFound = false;
-
 		List<String> fileContent_following;
 		try {
 			fileContent_following = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
@@ -321,23 +282,18 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.toLowerCase().equals(this.user.toLowerCase())) {
+				if (myuser.equals(this.user) && !userToUnfollow.equals(this.user)) {
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
 						ArrayList<String> followingList = new ArrayList<>(Arrays.asList(followingArray));
 						for (int j = 0; j < followingList.size(); j++) {
-							if (followingList.get(j).equals(userToUnfollow.toLowerCase())) {
-								userUnfollowFound = true;
+							if (followingList.get(j).equals(userToUnfollow)) {
 								followingList.remove(j);
 								unfollow = true;
 								break;
 							}
 						}
-						if (!userUnfollowFound) {
-							throw new Exception(
-									"Não foi possível deixar de seguir esse user pq não existe ou não o estava a seguir.");
-						}
-						line = myuser.toLowerCase() + ":";
+						line = myuser + ":";
 						for (int j = 0; j < followingList.size(); j++) {
 							if (j == 0) {
 								line = line + followingList.get(j);
@@ -349,7 +305,7 @@ public class ServerActions {
 					fileContent_following.set(i, line);
 					break;
 				}
-			}
+			}			
 			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			System.out.println("Problem removing from following.txt");
@@ -358,53 +314,37 @@ public class ServerActions {
 		return unfollow;
 	}
 
-	public String viewFollowers(){
-		String followersString = null;
-		try {
-			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
-			for (int i = 0; i < fileContent.size(); i++) {
-				String line = fileContent.get(i);
-				String[] split = line.split(":");
-				String username = split[0];
-				if (username.toLowerCase().equals(user.toLowerCase())) {
-					if (split.length > 1) {
-						followersString = split[1];
-					} else {
-						System.out.println("Não tem seguidores.");
-					}
-				}
+	public String followers() throws IOException {
+		String followersString = "Nao tem seguidores\n";
+		ArrayList<String> fileContent = new ArrayList<>(
+				Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
+		for (int i = 0; i < fileContent.size(); i++) {
+			String line = fileContent.get(i);
+			String[] split = line.split(":");
+			String username = split[0];
+			if (username.equals(user) && split.length > 1) {
+				followersString = split[1];
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.err.println("Error: reading followers file.");
 		}
 		return followersString;
 	}
 
-	public String viewFollowing(){
-		String followingString = null;
-		try {
-			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
-			for (int i = 0; i < fileContent.size(); i++) {
-				String line = fileContent.get(i);
-				String[] split = line.split(":");
-				String username = split[0];
-				if (username.toLowerCase().equals(user.toLowerCase())) {
-					if (split.length > 1) {
-						followingString = split[1];
-					} else {
-						System.out.println("Não segue ninguém.");
-					}
-				}
+	public String following() throws IOException {
+		String followingString = "Nao segue ninguem\n";
+		ArrayList<String> fileContent = new ArrayList<>(
+				Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
+		for (int i = 0; i < fileContent.size(); i++) {
+			String line = fileContent.get(i);
+			String[] split = line.split(":");
+			String username = split[0];
+			if (username.equals(user) && split.length > 1) {
+				followingString = split[1];
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.err.println("Error: reading following file.");
 		}
 		return followingString;
 	}
 
-	public String post(byte[] secondMesReceived) {
+	public String post(String photo) {
 		String photoID = null;
 
 		String folderName = IMAGES_FOLDER + "/img_" + user;
@@ -419,11 +359,11 @@ public class ServerActions {
 		}
 
 		// add photo to that folder
-		photoID = photoAdd(secondMesReceived, folderName);
-		
+		photoID = photoAdd(photo, folderName);
+
 		// verify if it worked
 		if (photoID != null) {
-			System.out.println(photoID + " successfully added!");
+			System.out.println(photo + " successfully added!");
 			return photoID;
 		} else {
 			System.out.println("Something went wrong... Photo wasn't added.");
@@ -431,21 +371,18 @@ public class ServerActions {
 		}
 	}
 
-	private String photoAdd(byte[] photoFile, String folder) {
-		String generatedPhotoID = generatePhotoID();
-		String filename = folder + "/" + generatedPhotoID + ".png";
-		File file = new File(filename);
-//		File file = openFile(filename);
+	private String photoAdd(String photoFileName, String folder) {
+		String generatedPhotoID = null;
+		String filename = folder + "/" + photoFileName + ".txt";
+//		File file = new File(filename);
+		File file = openFile(filename);
 
-		byte[] content = (byte[]) photoFile;
-		try {
-			Files.write(file.toPath(), content);
-		} catch (IOException e) {
-			e.printStackTrace();
+		if (file.exists()) {
+			generatedPhotoID = generatePhotoID();
 		}
 
 		if (generatedPhotoID != null) {
-			if (addToLedger(user, generatedPhotoID, generatedPhotoID)) {
+			if (addToLedger(user, generatedPhotoID, photoFileName)) {
 				return generatedPhotoID;
 			}
 		}
@@ -530,37 +467,42 @@ public class ServerActions {
 	public String wall(String nPhotos) {
 		int numeroPhotos = Integer.parseInt(nPhotos);
 		if (numeroPhotos < 1) {
-			System.err.println("Erro: user tem de pedir uma ou mais fotos.");
+			System.out.println("Erro: tem de pedir uma ou mais fotos.");
 		}
-
+		
 		String photosToPrint = null;
 
 		// ir buscar as pessoas q se segue
 		String following = null;
-		following = viewFollowing();
-
-		if (following == null) {
-			photosToPrint = "Nao segue ninguém por isso nao há fotos para apresentar.";
-			System.out.println(photosToPrint);
+		try {
+			following = following();
+		} catch (IOException e) {
+			System.out.println("Error getting who am i following...");
+			// e.printStackTrace();
 			return photosToPrint;
+		}
+		
+		if (following.equals("Nao segue ninguem\n")) {
+			System.out.println("Nao segues ninguem por isso nao ha fotos para apresentar.");
+			return null;
 		}
 
 		// a cada pessoa q se segue pegar nas fotos
 		String[] followingList = following.split(",");
 		List<String> followingStringList = new ArrayList<String>(Arrays.asList(followingList));
 		StringBuilder sb = new StringBuilder();
-
+		
 		try {
 			int photoCounter = Integer.parseInt(nPhotos);
 			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
-
+			
 			if (fileContent.size() <= 1) {
-				photosToPrint = "Não há fotos para apresentar.";
-				System.out.println(photosToPrint);
-				return photosToPrint;
+				System.out.println("Nao ha fotos para apresentar.");
+				return null;
 			}
-
+			
 			int ultimaLinha = fileContent.size() - 1;
+			System.out.println(ultimaLinha);
 			while (photoCounter != 0) {
 				String line = fileContent.get(ultimaLinha);
 				String[] split = line.split(":");
@@ -568,7 +510,7 @@ public class ServerActions {
 				String photoID = split[1];
 				String photoName = split[2];
 				String photoLikes = split[3];
-				if (followingStringList.contains(userFromList.toLowerCase())) {
+				if (followingStringList.contains(userFromList)) {
 					String text = "A foto com ID " + photoID + ", nome: " + photoName + ", tem " + photoLikes
 							+ " likes.\n";
 					sb.append(text);
@@ -587,14 +529,14 @@ public class ServerActions {
 		return photosToPrint;
 	}
 
-	public boolean like(String photoID) throws Exception {
+	public boolean like(String photoID) {
 		boolean liked = false;
 
 		// Get the photo info
 		String[] photoInfo = getPhotoInfo(photoID);
 		if (photoInfo == null) {
 			System.out.println("Error, getting that photoID...");
-			throw new Exception("Error, getting that photoID...");
+			return liked;
 		}
 
 		// increment likes of that photo
@@ -607,6 +549,7 @@ public class ServerActions {
 		if (updatePhotoInfo(photoID, photoInfo)) {
 			liked = true;
 		}
+
 		return liked;
 	}
 
@@ -678,6 +621,19 @@ public class ServerActions {
 			o.writeObject(group);
 			o.close();
 			f.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	public void writeGroupKey(File filename, String key, String groupID) {
+		File theDir=new File("./src/Server/GroupsKeys/"+groupID);
+		if (!theDir.exists()){
+		    theDir.mkdirs();
+		}
+		try {
+			FileWriter fw = new FileWriter(filename,true);
+			fw.write("0__"+key+"\n");
+			fw.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -811,30 +767,57 @@ public class ServerActions {
 		}
 		return listStr;
 	}
-
-	public boolean newGroup(String groupID) {
+	private String keyE;
+	public boolean newGroup(String groupID) throws IOException  {
+	
+		byte[] key = KeysClient.getSimetricKey();
+		try {
+			String keyEncrypted = new String(Keys.cipher(key,KeysClient.getPublicKey(user)));
+			keyE= keyEncrypted;
+		} catch (CertificateException e1) {
+			e1.printStackTrace();
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+		}
+		
 		boolean created = false;
 		Path path = Paths.get("Groups");
+		Path pathk = Paths.get("GroupsKeys");
 		try {
 			Files.createDirectories(path);
+			Files.createDirectories(pathk);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		String filename = GROUPS_FOLDER + "/" + groupID + ".dat";
+		String keysAll = GROUPS_FOLDERKEYS+ File.separator+ groupID+File.separator+groupID+"keys.txt";
+		
 		File file = new File(filename);
+		File fk = new File(keysAll);
 		if (!file.exists()) {
-			Group group = new Group(groupID, user);
+			//ficheiro
+			Group group = new Group(groupID, user,keyE);
 			writeGroup(file, group);
+			
 			created = true;
 		}
+		if(!fk.exists()) {
+			writeGroupKey(fk, keyE,groupID);
+		}
+		
+		
 		return created;
 	}
 
 	public boolean addUser(String userID, String groupID) {
+		
 		ArrayList<Group> groups = readGroups();
 		boolean existsGroup = false;
 		boolean added = false;
-		boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		
+		//boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		boolean existsUser=true;
+	
 		int i = 0;
 		for (Group g : groups) {
 			if (g.getId().equals(groupID)) {
@@ -844,7 +827,9 @@ public class ServerActions {
 			i++;
 		}
 		if (!existsUser) {
+			
 			return false;
+			
 		}
 		if (!existsGroup) {
 			return false;
@@ -853,21 +838,120 @@ public class ServerActions {
 		if (!group.getOwner().equals(user)) {
 			return false;
 		}
+		
 		if (!group.userInGroup(userID)) {
 			group.getMembers().add(userID);
+			
 			String filename = GROUPS_FOLDER + "/" + group.getId() + ".dat";
 			writeGroup(new File(filename), group);
 			added = true;
+			updateGroupKey(groupID,group.getMembers(),group.getOwner());
+			
 		}
 		readGroups();
 		return added;
 	}
 
-	public boolean removeUser(String userID, String groupID) {
+	private void updateGroupKey(String groupID, ArrayList<String> arrayList, String owner) {
+		byte[] keyS = KeysClient.getSimetricKey();
+		
+		System.out.println(arrayList+"***************");
+		int keyCode = getNumberKeys(groupID,owner);
+		System.out.println(keyCode);
+		
+		try {
+			for(String user :arrayList) {
+				String keyEncrypted = new String(KeysClient.cipher(keyS,KeysClient.getPublicKey(user)));
+				addUserKey(groupID,user,keyCode+"",keyEncrypted);
+			}
+		}catch(IOException | CertificateException e) {
+			System.out.println("Erro ao atualizar a key do groups");
+		}
+	}
+
+	private void addUserKey(String groupID, String userID,String id , String key) throws IOException {
+		File theDir=new File("./src/Server/GroupsKeys/"+groupID+File.separator+"Users");
+		if (!theDir.exists()){
+		    theDir.mkdirs();
+		}
+		//novo com path pa chave do user
+		String p =GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+userID+"keys.txt";
+		String members=GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+"Members.txt";
+		
+		File m = new File(members);
+		File n = new File(p);
+		
+		String all = id+"__"+key;	
+		writeGroupUsersKeys(p,all);
+		String maux="<"+userID+","+p+">";
+		writeToMembers(members,maux);
+		DuplicatesFromFile(members);
+		
+	}
+	private void DuplicatesFromFile(String members) throws IOException {
+		BufferedReader reader = new BufferedReader(new FileReader(members));
+	    Set<String> lines = new HashSet<String>(10000); 
+	    String line;
+	    while ((line = reader.readLine()) != null) {
+	        lines.add(line);
+	    }
+	    reader.close();
+	    BufferedWriter writer = new BufferedWriter(new FileWriter(members));
+	    for (String unique : lines) {
+	        writer.write(unique);
+	        writer.newLine();
+	    }
+	    writer.close();
+	}
+
+	private void writeToMembers(String members, String maux) {
+		File f = openFile(members);
+		try {
+			FileWriter fw = new FileWriter(members,true);
+			fw.write(maux+"\n");
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+	private void writeGroupUsersKeys(String file, String all) {
+		File f = openFile(file);
+		try {
+			FileWriter fw = new FileWriter(file,true);
+			fw.write(all+"\n");
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+	private int getNumberKeys(String groupID, String owner) {
+		int count=0;
+		try {
+		      File file = new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+groupID+"keys.txt");
+		      Scanner sc = new Scanner(file);
+
+		      while(sc.hasNextLine()) {
+		        sc.nextLine();
+		        count++;
+		      }
+		      sc.close();
+		    } catch (Exception e) {
+		      e.getStackTrace();
+		    }
+		//se nao da o dobro
+		return count/2;
+	}
+
+	public boolean removeUser(String userID, String groupID) throws IOException  {
 		ArrayList<Group> groups = readGroups();
 		boolean existsGroup = false;
 		boolean deleted = false;
-		boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		//boolean existsUser = AuthenticationServer.getInstance().existsUser(userID);
+		boolean existsUser=true;
 		int i = 0;
 		for (Group g : groups) {
 			if (g.getId().equals(groupID)) {
@@ -892,9 +976,67 @@ public class ServerActions {
 			String filename = GROUPS_FOLDER + "/" + group.getId() + ".dat";
 			writeGroup(new File(filename), group);
 			deleted = true;
+			deleteUserGroup(groupID,userID);
 		}
 		readGroups();
 		return deleted;
+	}
+
+	private void deleteUserGroup(String groupID, String userID) throws IOException  {
+		File file = new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+userID+"keys.txt");
+		removeAUX(file,userID);
+		File m= new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+"Members.txt");
+		removeAUXMEMBERS(m,userID,groupID);
+		
+		
+	}
+
+	private void removeAUXMEMBERS(File file, String userID,String groupID) throws IOException  {
+		String r ="<"+userID+","+"./src/Server/GroupsKeys/"+groupID+"/Users/"+userID+"keys.txt>";
+		File tempFile = new File(GROUPS_FOLDERKEYS+File.separator+groupID+File.separator+"Users"+File.separator+"MembersT.txt");
+		BufferedReader reader = new BufferedReader(new FileReader(file));
+	    BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
+
+	    String currentLine;
+	   
+	    while ((currentLine = reader.readLine()) != null) {
+	    	String trimmedLine = currentLine.trim();
+	        if(trimmedLine.equals(r)) continue;
+	        writer.write(currentLine + System.getProperty("line.separator"));
+	    }
+	    writer.close();
+	    reader.close();
+	    tempFile.renameTo(file);
+	}
+
+	private void removeAUX(File file, String userID) {
+		try(Scanner scanner = new Scanner(file)) {
+            try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
+                String line;
+                while (scanner.hasNextLine()) {
+                    line = scanner.nextLine();
+                    if (!line.trim().equals(userID)) {
+
+                        pw.println(line);
+                        pw.flush();
+                    }
+                }
+               
+                if (!file.delete()) {
+                    System.out.println("Could not delete file");
+                    return;
+                }
+
+                if (!file.renameTo(file))
+                    System.out.println("Could not rename file");
+            }
+        }
+      catch (IOException e)
+      {
+          System.out.println("IO Exception Occurred");
+      }
+
+		
 	}
 
 	public boolean sendMessage(String groupID, String[] messageArray) {
@@ -936,5 +1078,6 @@ public class ServerActions {
 		}
 		return file;
 	}
-
+	
+		 
 }

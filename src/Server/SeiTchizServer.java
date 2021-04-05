@@ -144,12 +144,7 @@ public class SeiTchizServer {
 					if (split.length == 1) {
 						String command = split[0];
 						if (command.equals("v") || command.equals("viewfollowers")) {
-							String viewFollowers = acc.viewFollowers();
-							if (viewFollowers != null) {
-								mesSent = "Seguidores:\n" + viewFollowers;
-							} else {
-								mesSent = "Não tem seguidores.";
-							}
+							mesSent = "Seguidores:\n" + acc.followers();
 						}
 						if (command.equals("g") || command.equals("ginfo")) {
 							mesSent = "Os meus grupos:\n" + acc.listGroups();
@@ -173,16 +168,8 @@ public class SeiTchizServer {
 								mesSent = "Nao foi possivel deixar de seguir: '" + userID + "'";
 							}
 						} else if (command.equals("p") || command.equals("post")) {
-							String photoID = null;
-							
-							//ask for <photo>
-							outStream.writeObject("<photo>");
-	                        outStream.flush();
-	                        
-	                        //receive photo
-	                        byte[] secondMesReceived = (byte[]) inStream.readObject();
-                        	photoID = acc.post(secondMesReceived);
-                        	
+							String photo = split[1];
+							String photoID = acc.post(photo);
 							if (photoID != null) {
 								mesSent = "Fotografia com ID: " + photoID + "\n publicada com sucesso.";
 							} else {
@@ -198,16 +185,11 @@ public class SeiTchizServer {
 							}
 						} else if (command.equals("l") || command.equals("like")) {
 							String photoID = split[1];
-							boolean liked;
-							try {
-								liked = acc.like(photoID);
-								if (liked) {
-									mesSent = "Fotografia com ID: " + photoID + " liked.";
-								} else {
-									mesSent = "nao foi possivel fazer like na foto com ID: " + photoID;
-								}
-							} catch (Exception e) {
-								e.printStackTrace();
+							boolean liked = acc.like(photoID);
+							if (liked) {
+								mesSent = "Fotografia com ID: " + photoID + " liked.";
+							} else {
+								mesSent = "nao foi possivel fazer like na foto com ID: " + photoID;
 							}
 						} else if (command.equals("n") || command.equals("newgroup")) {
 							String groupID = split[1];
