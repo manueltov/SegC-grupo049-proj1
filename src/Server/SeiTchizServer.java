@@ -8,7 +8,11 @@ import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
 
 import SeiTchizKeys.KeysServer;
-
+/**
+ * 
+ * Esta classe é responsável pela criação e manipulação do servidor "SeiTchizServer"
+ *
+ */
 public class SeiTchizServer {
 	private static int PORT = 45678;
 	private static final String txt = ".txt";
@@ -106,7 +110,40 @@ public class SeiTchizServer {
 		}
 		return file;
 	}
-
+	/**
+	* 
+	* Esta classe é responsável pela criação e manipulação dos comandos utilizados pelos utilizadores do "SeiTchizServer"
+	* comandos:
+	* stop -> parar de receber pedidos
+	* v/viewfollowers -> ver o seu numero de seguidores 
+	* g/ginfo -> mostra informações sobre qual os grupos a que pertence/ é dono
+	*			@param groupID - identificador do grupo
+	* c/collect -> receber todas as mensagens do grupo que o utilizador ainda não tenha recebido
+	*			@param groupID - identificador do grupo
+	* h/history -> histórico de mensagens do grupo que o utilizador ja leu
+	*			@param groupID - identificador do grupo
+	* f/follow -> seguir outro utilizador
+	*			@param userID - identificador do utilizador que quer seguir
+	* u/unfollow -> deixar de seguir outro utilizador
+	*			@param userID - identificador do utilizador que quer deixar de seguir
+	* p/post -> publicar uma foto
+	*			@param photo - fotografia que quer publicar
+	* w/wall -> mostrar um conjunto de fotografias mais recentes dos utilizadores que seguem
+	*			@param nPhotos - numero de fotografias que o utilizador deseja ver
+	* l/like -> gostar de uma fotografia
+	*			@param photoID - identificador da fotografia que gosta
+	* n/newgroup -> criar um grupo de utilizadores
+	*			@param grupoID - identificador do grupo que quer criar
+	* a/addu -> adicionar um utilizador ao grupo
+	*			@param userID - identificador do utilizador que quer juntar ao grupo
+	*			@param groupID - identificador do grupo
+	* r/removeu -> remover um utilizador do grupo 
+	*			@param userID - identificador do utilizador que quer remover do grupo
+	*			@param groupID - identificador do grupo				
+	* m/msg -> enviar uma mensagem para um grupo a qual pertence
+	*			@param groupID - identificador do grupo
+	*			@param msg - conteudo da mensagem
+	*/
 	class ServerThread extends Thread {
 		private Socket socket = null;
 
@@ -144,7 +181,12 @@ public class SeiTchizServer {
 					if (split.length == 1) {
 						String command = split[0];
 						if (command.equals("v") || command.equals("viewfollowers")) {
-							mesSent = "Seguidores:\n" + acc.followers();
+							String viewFollowers = acc.viewFollowers();
+							if (viewFollowers != null) {
+								mesSent = "Seguidores:\n" + viewFollowers;
+							} else {
+								mesSent = "Não tem seguidores.";
+							}
 						}
 						if (command.equals("g") || command.equals("ginfo")) {
 							mesSent = "Os meus grupos:\n" + acc.listGroups();
@@ -168,8 +210,16 @@ public class SeiTchizServer {
 								mesSent = "Nao foi possivel deixar de seguir: '" + userID + "'";
 							}
 						} else if (command.equals("p") || command.equals("post")) {
-							String photo = split[1];
-							String photoID = acc.post(photo);
+							String photoID = null;
+							
+							//ask for <photo>
+							outStream.writeObject("<photo>");
+	                        outStream.flush();
+	                        
+	                        //receive photo
+	                        byte[] secondMesReceived = (byte[]) inStream.readObject();
+                        	photoID = acc.post(secondMesReceived);
+                        	
 							if (photoID != null) {
 								mesSent = "Fotografia com ID: " + photoID + "\n publicada com sucesso.";
 							} else {

@@ -5,6 +5,9 @@ package Client;
 import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.cert.Certificate;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
@@ -16,9 +19,11 @@ public class SeiTchiz {
     private Socket socketClient = null;
     private static int PORT = 45678;
     private KeysClient keysClient = null;
+    private static String postDirectory = "src"+File.separator+"Client"+File.separator+"postDirectory";
     
     public static void main(String[] args) {
         System.out.println("cliente SeiTchiz inicio");
+        createPostDirectory();
         if (args.length != 5) {
             //127.0.0.1:45678
             System.err.println("Passe os dados desta maneira: <serverAddress> <truststore> <keystore> <keystore-password> <username> ");
@@ -53,7 +58,15 @@ public class SeiTchiz {
         
        
     }
-    
+    private static void createPostDirectory() {
+		try {
+			Path path = Paths.get(postDirectory);
+			// java.nio.file.Files;
+			Files.createDirectories(path);
+		} catch (IOException e) {
+			System.err.println("Erro: pasta de fotografias nao criada" + e.getMessage());
+		}
+	}
     
     private void loadCertificate(String username, String truststore, String keyStore, String keyStorePass) {
       
@@ -128,12 +141,30 @@ public class SeiTchiz {
                 String str2="";
              
                 while(!str.equals("stop")){
-                	
-                    str=br.readLine();
-                    outStream.writeObject(str);
-                    outStream.flush();
-                    str2= inStream.readObject().toString();
-                    System.out.println(str2);
+                	str=br.readLine();
+                    String[] split = str.split(" ");
+                    if (split[0].equals("p") || split[0].equals("post")) {
+                    	File f = new File(postDirectory + File.separator + split[1]);
+                    	byte[] content = Files.readAllBytes(f.toPath());
+                    	
+                    	// say that it will be a post
+                    	outStream.writeObject(str);
+                        outStream.flush();
+
+                        //server will ask for the file
+                        str2= inStream.readObject().toString();
+                        //System.out.println(str2);
+                    	if (str2.equals("<photo>")) {
+                    		//if server asks, send it!
+                            outStream.writeObject(content);
+                            outStream.flush();
+						}
+    				} else {
+    					outStream.writeObject(str);
+                        outStream.flush();
+                        str2= inStream.readObject().toString();
+                        System.out.println(str2);
+					}
                 }
             }
             else{

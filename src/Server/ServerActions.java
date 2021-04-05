@@ -30,7 +30,11 @@ import javax.crypto.SecretKey;
 import SeiTchizKeys.Keys;
 import SeiTchizKeys.KeysClient;
 import SeiTchizKeys.KeysServer;
-
+/**
+ * 
+ * Esta classe é responsável pela execução das funcões para cumprir os comandos enviados pelo utilizador do "SeiTchizServer"
+ *
+ */
 public class ServerActions {
 	private String user = "";
 	private ObjectInputStream in = null;
@@ -44,12 +48,24 @@ public class ServerActions {
 	// private static final String USERS = "users.txt"; //not used
 	private static final String IMAGES_FOLDER = "./src/Server/Images";
 	
+	/**
+	* 
+	* Cria a stream de dados do server
+	* 
+	* @param in - stream de dados que entra
+	* @param out -stream de dados que saem
+	*/
 	public ServerActions(ObjectInputStream in, ObjectOutputStream out) {
 		this.in = in;
 		this.out = out;
 		createImagesFolder();
 	}
-
+	/**
+	* 
+	* verifica a autenticacao do utilizador
+	* 
+	* @return boolean - true - se a auntenticação tenha sucesso / - false - caso contrario
+	*/
 	public boolean comecaAccoes() {
 		try {
 			if (!autenticacao()) {
@@ -63,6 +79,12 @@ public class ServerActions {
 		return false;
 	}
 	private KeysServer keyServer = null;
+	/**
+	* 
+	* carrega as chaves usadas no servidor vindas do servidor de chaves
+	* 
+	* @param keyServer - servidor de chaves
+	*/
 	public void loadKeys(KeysServer keyServer) {
 		this.keyServer=keyServer;
 	}
@@ -134,28 +156,47 @@ public class ServerActions {
 			System.err.println("Erro: pasta de fotografias nao criada" + e.getMessage());
 		}
 	}
-
+	/**
+	* 
+	* função para seguir um utilizador
+	* 
+	* @param userToFollow - identificador do utilizador que se quer seguir
+	* @return boolean - true - se a operação foi executada com sucesso / - false - caso contrário
+	* @throws IOException
+	*/
 	public boolean followUser(String userToFollow) throws IOException {
+		if (userToFollow.equals(this.user)) {
+			System.err.println("Não é possível seguir-se a si mesmo.");
+			return false;
+		}
+
 		boolean followersFile = false;
 		boolean followingFile = false;
 
-		// followers file
-		followersFile = addToFollowers(userToFollow);
-		if (!followersFile) {
-			System.out.println("Problem adding to followers file...");
-		}
+		try {
 
-		// following file
-		followingFile = addToFollowing(userToFollow);
-		if (!followingFile) {
-			System.out.println("Problem adding to following file...");
+			// followers file
+			followersFile = addToFollowers(userToFollow);
+			if (!followersFile) {
+				System.err.println("Problem adding to followers file...");
+			}
+
+			// following file
+			followingFile = addToFollowing(userToFollow);
+			if (!followingFile) {
+				System.err.println("Problem adding to following file...");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		return followersFile && followingFile;
 	}
 
-	private boolean addToFollowing(String userToFollow) {
+	private boolean addToFollowing(String userToFollow) throws Exception {
 		boolean follow = false;
+		boolean found = false;
 
 		List<String> fileContent_following;
 		try {
@@ -164,31 +205,39 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.equals(this.user) && !userToFollow.equals(this.user)) {
+				if (myuser.toLowerCase().equals(this.user.toLowerCase())) {
+					found = true;
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
-						if (!Arrays.asList(followingArray).contains(userToFollow)) {
-							line = line + "," + userToFollow;
+						if (!Arrays.asList(followingArray).contains(userToFollow.toLowerCase())) {
+							line = line + "," + userToFollow.toLowerCase();
 							follow = true;
+						} else {
+							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
-						line = line + userToFollow;
+						line = line + userToFollow.toLowerCase();
 						follow = true;
 					}
 					fileContent_following.set(i, line);
 					break;
 				}
 			}
+			if (!found) {
+				throw new Exception("Utilizador não foi encontrado");
+			}
 			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
 		} catch (IOException e) {
-			System.out.println("Problem adding to following.txt");
+			System.out.println("Not added to following.txt");
 			// e.printStackTrace();
 		}
 		return follow;
 	}
 
-	private boolean addToFollowers(String userToFollow) {
+	private boolean addToFollowers(String userToFollow) throws Exception {
 		boolean follow = false;
+		boolean found = false;
+
 		try {
 			List<String> fileContent_followers;
 			fileContent_followers = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
@@ -196,67 +245,99 @@ public class ServerActions {
 				String line = fileContent_followers.get(i);
 				String[] split = line.split(":");
 				String userFollow = split[0];
-				if (userFollow.equals(userToFollow) && !userToFollow.equals(user)) {
+				if (userFollow.toLowerCase().equals(userToFollow.toLowerCase())) {
+					found = true;
 					if (split.length > 1) {
 						String[] followersArray = split[1].split(",");
-						if (!Arrays.asList(followersArray).contains(user)) {
-							line = line + "," + user;
+						if (!Arrays.asList(followersArray).contains(user.toLowerCase())) {
+							line = line + "," + user.toLowerCase();
 							follow = true;
+						} else {
+							throw new Exception("Já se encontra a seguir este utilizador.");
 						}
 					} else {
-						line = line + user;
+						line = line + user.toLowerCase();
 						follow = true;
 					}
 					fileContent_followers.set(i, line);
 					break;
 				}
 			}
+			if (!found) {
+				throw new Exception("Utilizador não foi encontrado");
+			}
 			Files.write(Paths.get(followers), fileContent_followers, StandardCharsets.UTF_8);
 		} catch (IOException e) {
-			System.out.println("Problem adding to followers.txt");
+			System.out.println("Not added to followers.txt");
 			// e.printStackTrace();
 		}
 		return follow;
 	}
-
+	/**
+	* 
+	* função para deixar de seguir um utilizador
+	* 
+	* @param userToUnfollow - identificador do utilizador que se quer seguir
+	* @return boolean - true - se a operação foi executada com sucesso / - false - caso contrário
+	* @throws IOException
+	*/
 	public boolean unfollowUser(String userToUnfollow) throws IOException {
+		if (userToUnfollow.equals(this.user)) {
+			System.err.println("Não é permitido deixar de seguir o próprio.");
+			return false;
+		}
+
 		boolean followersFile = false;
 		boolean followingFile = false;
 
-		// followers file
-		followersFile = removeFromFollowers(userToUnfollow);
-		if (!followersFile) {
-			System.out.println("Problem removing from followers file...");
-		}
+		try {
 
-		// following file
-		followingFile = removeFromFollowing(userToUnfollow);
-		if (!followingFile) {
-			System.out.println("Problem removing from following file...");
+			// followers file
+			followersFile = removeFromFollowers(userToUnfollow);
+			if (!followersFile) {
+				throw new Exception("Problem removing from followers file...");
+			}
+
+			// following file
+			followingFile = removeFromFollowing(userToUnfollow);
+			if (!followingFile) {
+				throw new Exception("Problem removing from following file...");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		return followersFile && followingFile;
 	}
 
-	private boolean removeFromFollowers(String userToUnfollow) throws IOException {
+	private boolean removeFromFollowers(String userToUnfollow) throws Exception {
 		boolean unfollow = false;
+		boolean wasFollowing = false;
+		boolean userUnfollowFound = false;
+
 		List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
 		for (int i = 0; i < fileContent.size(); i++) {
 			String line = fileContent.get(i);
 			String[] split = line.split(":");
 			String userUnfollow = split[0];
-			if (userUnfollow.equals(userToUnfollow) && !userToUnfollow.equals(user)) {
+			if (userUnfollow.toLowerCase().equals(userToUnfollow.toLowerCase())) {
+				userUnfollowFound = true;
 				if (split.length > 1) {
 					String[] followersArray = split[1].split(",");
 					ArrayList<String> followersList = new ArrayList<>(Arrays.asList(followersArray));
 					for (int j = 0; j < followersList.size(); j++) {
-						if (followersList.get(j).equals(user)) {
+						if (followersList.get(j).equals(user.toLowerCase())) {
+							wasFollowing = true;
 							followersList.remove(j);
 							unfollow = true;
 							break;
 						}
 					}
-					line = userToUnfollow + ":";
+					if (!wasFollowing) {
+						throw new Exception("Não se encontrava a seguir esse utilizador.");
+					}
+					line = userToUnfollow.toLowerCase() + ":";
 					for (int j = 0; j < followersList.size(); j++) {
 						if (j == 0) {
 							line = line + followersList.get(j);
@@ -269,12 +350,17 @@ public class ServerActions {
 				break;
 			}
 		}
+		if (!userUnfollowFound) {
+			throw new Exception("Não foi encontrado o user que pretende deixar de seguir.");
+		}
 		Files.write(Paths.get(followers), fileContent, StandardCharsets.UTF_8);
 		return unfollow;
 	}
 	
-	private boolean removeFromFollowing(String userToUnfollow){
+	private boolean removeFromFollowing(String userToUnfollow) throws Exception{
 		boolean unfollow = false;
+		boolean userUnfollowFound = false;
+
 		List<String> fileContent_following;
 		try {
 			fileContent_following = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
@@ -282,18 +368,23 @@ public class ServerActions {
 				String line = fileContent_following.get(i);
 				String[] split = line.split(":");
 				String myuser = split[0];
-				if (myuser.equals(this.user) && !userToUnfollow.equals(this.user)) {
+				if (myuser.toLowerCase().equals(this.user.toLowerCase())) {
 					if (split.length > 1) {
 						String[] followingArray = split[1].split(",");
 						ArrayList<String> followingList = new ArrayList<>(Arrays.asList(followingArray));
 						for (int j = 0; j < followingList.size(); j++) {
-							if (followingList.get(j).equals(userToUnfollow)) {
+							if (followingList.get(j).equals(userToUnfollow.toLowerCase())) {
+								userUnfollowFound = true;
 								followingList.remove(j);
 								unfollow = true;
 								break;
 							}
 						}
-						line = myuser + ":";
+						if (!userUnfollowFound) {
+							throw new Exception(
+									"Não foi possível deixar de seguir esse user pq não existe ou não o estava a seguir.");
+						}
+						line = myuser.toLowerCase() + ":";
 						for (int j = 0; j < followingList.size(); j++) {
 							if (j == 0) {
 								line = line + followingList.get(j);
@@ -305,7 +396,7 @@ public class ServerActions {
 					fileContent_following.set(i, line);
 					break;
 				}
-			}			
+			}
 			Files.write(Paths.get(following), fileContent_following, StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			System.out.println("Problem removing from following.txt");
@@ -313,38 +404,66 @@ public class ServerActions {
 		}
 		return unfollow;
 	}
-
-	public String followers() throws IOException {
-		String followersString = "Nao tem seguidores\n";
-		ArrayList<String> fileContent = new ArrayList<>(
-				Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
-		for (int i = 0; i < fileContent.size(); i++) {
-			String line = fileContent.get(i);
-			String[] split = line.split(":");
-			String username = split[0];
-			if (username.equals(user) && split.length > 1) {
-				followersString = split[1];
+	/**
+	 * 
+	 * função para mostrar os seguidores de um utilizador 
+	 * 
+	 * @return followersString - String com todos os nomes de todos os seguidores
+	 * @throws IOException
+	*/
+	public String viewFollowers() throws IOException {
+		String followersString = null;
+		try {
+			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(followers), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent.size(); i++) {
+				String line = fileContent.get(i);
+				String[] split = line.split(":");
+				String username = split[0];
+				if (username.toLowerCase().equals(user.toLowerCase())) {
+					if (split.length > 1) {
+						followersString = split[1];
+					} else {
+						System.out.println("Não tem seguidores.");
+					}
+				}
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println("Error: reading followers file.");
 		}
 		return followersString;
 	}
-
-	public String following() throws IOException {
-		String followingString = "Nao segue ninguem\n";
-		ArrayList<String> fileContent = new ArrayList<>(
-				Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
-		for (int i = 0; i < fileContent.size(); i++) {
-			String line = fileContent.get(i);
-			String[] split = line.split(":");
-			String username = split[0];
-			if (username.equals(user) && split.length > 1) {
-				followingString = split[1];
+	/**
+	 * 
+	 * função para mostrar todos as pessoas seguidas pelo utilizador 
+	 * 
+	 * @return followingString - String com todos os nomes de todos os seguidos
+	 * @throws IOException
+	*/
+	public String viewFollowing() throws IOException {
+		String followingString = null;
+		try {
+			ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(following), StandardCharsets.UTF_8));
+			for (int i = 0; i < fileContent.size(); i++) {
+				String line = fileContent.get(i);
+				String[] split = line.split(":");
+				String username = split[0];
+				if (username.toLowerCase().equals(user.toLowerCase())) {
+					if (split.length > 1) {
+						followingString = split[1];
+					} else {
+						System.out.println("Não segue ninguém.");
+					}
+				}
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println("Error: reading following file.");
 		}
 		return followingString;
 	}
 
-	public String post(String photo) {
+	public String post(byte[] secondMesReceived) {
 		String photoID = null;
 
 		String folderName = IMAGES_FOLDER + "/img_" + user;
@@ -359,11 +478,11 @@ public class ServerActions {
 		}
 
 		// add photo to that folder
-		photoID = photoAdd(photo, folderName);
+		photoID = photoAdd(secondMesReceived, folderName);
 
 		// verify if it worked
 		if (photoID != null) {
-			System.out.println(photo + " successfully added!");
+			System.out.println(secondMesReceived + " successfully added!");
 			return photoID;
 		} else {
 			System.out.println("Something went wrong... Photo wasn't added.");
@@ -371,18 +490,21 @@ public class ServerActions {
 		}
 	}
 
-	private String photoAdd(String photoFileName, String folder) {
-		String generatedPhotoID = null;
-		String filename = folder + "/" + photoFileName + ".txt";
-//		File file = new File(filename);
-		File file = openFile(filename);
+	private String photoAdd(byte[] photoFile, String folder) {
+		String generatedPhotoID = generatePhotoID();
+		String filename = folder + "/" + generatedPhotoID + ".png";
+		File file = new File(filename);
+//		File file = openFile(filename);
 
-		if (file.exists()) {
-			generatedPhotoID = generatePhotoID();
+		byte[] content = (byte[]) photoFile;
+		try {
+			Files.write(file.toPath(), content);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 
 		if (generatedPhotoID != null) {
-			if (addToLedger(user, generatedPhotoID, photoFileName)) {
+			if (addToLedger(user, generatedPhotoID, generatedPhotoID)) {
 				return generatedPhotoID;
 			}
 		}
@@ -464,45 +586,40 @@ public class ServerActions {
 		return Integer.parseInt(current_ID);
 	}
 
-	public String wall(String nPhotos) {
+	public String wall(String nPhotos) throws IOException {
 		int numeroPhotos = Integer.parseInt(nPhotos);
 		if (numeroPhotos < 1) {
-			System.out.println("Erro: tem de pedir uma ou mais fotos.");
+			System.err.println("Erro: user tem de pedir uma ou mais fotos.");
 		}
-		
+
 		String photosToPrint = null;
 
 		// ir buscar as pessoas q se segue
 		String following = null;
-		try {
-			following = following();
-		} catch (IOException e) {
-			System.out.println("Error getting who am i following...");
-			// e.printStackTrace();
+		following = viewFollowing();
+
+		if (following == null) {
+			photosToPrint = "Nao segue ninguém por isso nao há fotos para apresentar.";
+			System.out.println(photosToPrint);
 			return photosToPrint;
-		}
-		
-		if (following.equals("Nao segue ninguem\n")) {
-			System.out.println("Nao segues ninguem por isso nao ha fotos para apresentar.");
-			return null;
 		}
 
 		// a cada pessoa q se segue pegar nas fotos
 		String[] followingList = following.split(",");
 		List<String> followingStringList = new ArrayList<String>(Arrays.asList(followingList));
 		StringBuilder sb = new StringBuilder();
-		
+
 		try {
 			int photoCounter = Integer.parseInt(nPhotos);
 			List<String> fileContent = new ArrayList<>(Files.readAllLines(Paths.get(ledger), StandardCharsets.UTF_8));
-			
+
 			if (fileContent.size() <= 1) {
-				System.out.println("Nao ha fotos para apresentar.");
-				return null;
+				photosToPrint = "Não há fotos para apresentar.";
+				System.out.println(photosToPrint);
+				return photosToPrint;
 			}
-			
+
 			int ultimaLinha = fileContent.size() - 1;
-			System.out.println(ultimaLinha);
 			while (photoCounter != 0) {
 				String line = fileContent.get(ultimaLinha);
 				String[] split = line.split(":");
@@ -510,7 +627,7 @@ public class ServerActions {
 				String photoID = split[1];
 				String photoName = split[2];
 				String photoLikes = split[3];
-				if (followingStringList.contains(userFromList)) {
+				if (followingStringList.contains(userFromList.toLowerCase())) {
 					String text = "A foto com ID " + photoID + ", nome: " + photoName + ", tem " + photoLikes
 							+ " likes.\n";
 					sb.append(text);
@@ -613,7 +730,13 @@ public class ServerActions {
 
 		return photoInfoUpdated;
 	}
-
+	/**
+	 * 
+	 * função para alterar  e criar um grupo 
+	 *
+	 * @param filename - File - ficheiro onde estão presentes os grupos
+	 * @param group - Group - grupo de utilizadores
+	 */
 	public void writeGroup(File filename, Group group) {
 		try {
 			FileOutputStream f = new FileOutputStream(filename);
@@ -625,6 +748,14 @@ public class ServerActions {
 			e.printStackTrace();
 		}
 	}
+	/**
+	* 
+	* função para criar chave do grupo
+	*
+	* @param filename - File - ficheiro onde estão presentes os grupos
+	* @param key - String - chave do grupo
+	* @param groupID - String - identificador do grupo
+	*/
 	public void writeGroupKey(File filename, String key, String groupID) {
 		File theDir=new File("./src/Server/GroupsKeys/"+groupID);
 		if (!theDir.exists()){
@@ -638,7 +769,12 @@ public class ServerActions {
 			e.printStackTrace();
 		}
 	}
-
+	/**
+	* 
+	* função que devolve todos os grupos
+	*
+	* @return groups - ArrayList - lista de grupos
+	*/
 	public ArrayList<Group> readGroups() {
 		ArrayList<Group> groups = new ArrayList<>();
 		File folder = new File(GROUPS_FOLDER);
@@ -660,7 +796,11 @@ public class ServerActions {
 		}
 		return groups;
 	}
-
+	/**
+	* 
+	* função que imprime as informações sobre todos os grupos
+	*
+	*/
 	public void printGroups() {
 		ArrayList<Group> groups = readGroups();
 		for (Group g : groups) {
@@ -687,7 +827,13 @@ public class ServerActions {
 			System.out.println("=====================================");
 		}
 	}
-
+	/**
+	* 
+	* função que mostra as  mensagens enviadas para o grupo groupID e que o cliente ainda não tenha recebido
+	*
+	* @param groupID - String - identificador do grupo
+	* @return msgStr - String - conjunto de mensagens que o utilizador ainda não leu / Nao pertence ao grupo ou o grupo nao existe / o existem mensagens novas
+	*/
 	public String collect(String groupID) {
 		String msgStr = "Nao pertence ao grupo ou o grupo nao existe\n";
 		ArrayList<Group> groups = readGroups();
@@ -712,7 +858,13 @@ public class ServerActions {
 		}
 		return msgStr;
 	}
-
+	/**
+	 * 
+	 * função que imprime histórico das mensagens do grupo indicado que o cliente já leu anteriormente
+	 *
+	 * @param groupID - String - identificador do grupo
+	 * @return msgStr - String - conjunto de mensagens que o utilizador ainda não leu / Nao pertence ao grupo ou o grupo nao existe / o existem mensagens novas
+	*/
 	public String history(String groupID) {
 		String msgStr = "Nao pertence ao grupo ou o grupo nao existe\n";
 		ArrayList<Group> groups = readGroups();
@@ -733,7 +885,12 @@ public class ServerActions {
 		}
 		return msgStr;
 	}
-
+	/**
+	  * 
+	  * função que imprime a lista de grupos, mostando o dono e os membros
+	  *
+	  * @return listStr - String - lista de grupos
+	*/	
 	public String listGroups() {
 		String listStr = "";
 		ArrayList<Group> groups = readGroups();
@@ -746,7 +903,12 @@ public class ServerActions {
 		}
 		return listStr;
 	}
-
+	/**
+	  * 
+	  * função que imprime as informações de um grupo, mostando o dono e os membros
+	  *
+	  * @return listStr - String - informações e detalhes do grupo 
+	*/
 	public String listGroups(String groupID) {
 		String listStr = "";
 		ArrayList<Group> groups = readGroups();
@@ -808,7 +970,14 @@ public class ServerActions {
 		
 		return created;
 	}
-
+	/**
+	* 
+	* função que adiciona um utilizador a um grupo
+	* 
+	* @param userID - String - identificador do utilizador a adicionar
+	* @param groupID - String - identificador do grupo
+	* @return boolean - true - caso o utilizador tenha sido adicionado ao grupo / - false - caso contrário 
+	*/
 	public boolean addUser(String userID, String groupID) {
 		
 		ArrayList<Group> groups = readGroups();
@@ -945,7 +1114,15 @@ public class ServerActions {
 		//se nao da o dobro
 		return count/2;
 	}
-
+	/**
+	 * 
+	 * função que remove um utilizador de um grupo
+	 * 
+	 * @param userID - String - identificador do utilizador a remover
+	 * @param groupID - String - identificador do grupo
+	 * @return boolean - true - caso o utilizador tenha sido removido do grupo / - false - caso contrário 
+	 * @throws IOException
+	*/
 	public boolean removeUser(String userID, String groupID) throws IOException  {
 		ArrayList<Group> groups = readGroups();
 		boolean existsGroup = false;
@@ -1038,7 +1215,15 @@ public class ServerActions {
 
 		
 	}
-
+	/**
+	* 
+	* função que envia uma mensagem para um grupo 
+	* 
+	* @param groupID - String - identificador do grupo
+	* @param messageArray -String[] - conjunto
+	* @return boolean - true - caso o utilizador tenha sido removido do grupo / - false - caso contrário 
+	* @throws IOException
+	*/
 	public boolean sendMessage(String groupID, String[] messageArray) {
 		boolean sent = false;
 		ArrayList<Group> groups = readGroups();

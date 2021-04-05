@@ -6,7 +6,11 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
-
+/**
+ * 
+ * Esta classe é responsável pela autenticação e registo no servidor 
+ *
+ */
 public class AuthenticationServer {
 
 	private static AuthenticationServer autentica = null;
@@ -26,36 +30,52 @@ public class AuthenticationServer {
 		return autentica;
 	}
 
-	
+	/**
+	 * 
+	 * Regista um novo utilizador
+	 * 
+	 * @param user - o nome do utilizador 
+	 * @return boolean - true - se foi registado com sucesso / - false - se não foi registado com sucesso
+	 * @throws IOException
+	*/
 	public boolean registerUser(String user) throws IOException {
 		File file = openFile(utilizadores);
 		BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
-		writer.write(user + "\n");
+		writer.write(user.toLowerCase() + "\n");
 		writer.close();
 
 		// followers file
 		file = openFile(followers);
 		writer = new BufferedWriter(new FileWriter(file, true));
-		writer.write(user + ":\n");
+		writer.write(user.toLowerCase() + ":\n");
 		writer.close();
 
 		// following file
 		file = openFile(following);
 		writer = new BufferedWriter(new FileWriter(file, true));
-		writer.write(user + ":\n");
+		writer.write(user.toLowerCase() + ":\n");
 		writer.close();
 
-		System.out.println("User adicionado " + user);
+		System.out.println("User adicionado " + user.toLowerCase());
 		return true;
 	}
-
+	/**
+	 * 
+	 * Verifica se já existe 
+	 * 
+	 * @param username - o nome do utilizador 
+	 * @return boolean - true - se já existe  / - false - se não existir 
+	 * 
+	*/
 	public boolean existsUser(String username) {
 		File usersFile = openFile(utilizadores);
 		try (Scanner reader = new Scanner(usersFile)) {
 			while (reader.hasNextLine()) {
-				
-				if (username.equals(reader.nextLine())) {
-					System.out.println("User " + username + " existe");
+				//String line = reader.nextLine();
+				//String[] split = line.split(":");
+				//String username = split[0];
+				if (username.toLowerCase().equals(reader.nextLine())) {
+					System.out.println("User " + username.toLowerCase() + " existe");
 					return true;
 				}
 			}
@@ -90,6 +110,14 @@ public class AuthenticationServer {
 		}
 		return valid;
 	}
+	*/
+	/**
+	* 
+	* Procura e devolve um ficheiro com o nome dado, caso o ficheiro não exista, cria um novo ficheiro
+	* 
+	* @param str - nome do ficheiro 
+	* @return file - true - ficheiro com o nome dado
+	* 
 	*/
 	private File openFile(String str) {
 		File file = new File(str);
